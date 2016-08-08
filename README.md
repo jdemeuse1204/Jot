@@ -266,10 +266,13 @@ The best way to use **Jot** is to utilize the projects app/web configuration fil
 ## Authors
 **James DeMeuse**
 
-+ [http://twitter.com/John_Papa](http://twitter.com/John_Papa)
++ [http://twitter.com/TheMiddleMan124](http://twitter.com/TheMiddleMan124)
 
 ## Credits
 Thank you to https://stormpath.com/blog/jwt-the-right-way
+Encryption http://stackoverflow.com/questions/202011/encrypt-and-decrypt-a-string
+Url Encoding https://tools.ietf.org/html/draft-ietf-jose-json-web-signature-08#appendix-C
+Jwt Claims https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32#section-4.1.4
 
 ## Copyright
 Copyright © 2016
