@@ -92,6 +92,14 @@ namespace Jot.Tests.NoConfig
             var provider = new JwtTokenProvider(30, JwtEncryption.AesHmac256);
             var encryptionPackage = new SingleEncryptionSecret("jsdfkjhsldjfls");
 
+            provider.OnCreate += () =>
+            {
+                return new JwtClaimPayload
+                {
+                    {"iss", "IssuedByMe!"}
+                };
+            };
+
             var token = provider.Create();
 
             var jwt = provider.Encode(token, encryptionPackage);

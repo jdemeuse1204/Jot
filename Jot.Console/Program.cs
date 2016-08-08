@@ -10,7 +10,7 @@ namespace Jot.Console
     {
         static void Main(string[] args)
         {
-            var provider = new JwtTokenProvider();
+            var provider = new JwtTokenProvider(30, JwtEncryption.AesHmac256);
 
             var token = provider.Create();
 
@@ -22,6 +22,22 @@ namespace Jot.Console
             {
 
             }
+
+            // Setup
+
+            // Creating a Token
+
+                // Setting claims
+
+
+            // Encoding a Token
+
+            // Decoding a Token
+
+            // Checking token Validity
+
+
+            // 
         }
     }
 }
