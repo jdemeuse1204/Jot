@@ -81,6 +81,15 @@ namespace Jot
                 return base["secret"] as string;
             }
         }
+
+        [ConfigurationProperty("encryptHeader", IsRequired = false)]
+        public bool? EncryptHeader
+        {
+            get
+            {
+                return base["encryptHeader"] as bool?;
+            }
+        }
     }
 
     public sealed class TripleEncryptionConfigurationElement : ConfigurationElement
@@ -119,6 +128,15 @@ namespace Jot
             get
             {
                 return base["secretThree"] as string;
+            }
+        }
+
+        [ConfigurationProperty("encryptHeader", IsRequired = false)]
+        public bool? EncryptHeader
+        {
+            get
+            {
+                return base["encryptHeader"] as bool?;
             }
         }
     }

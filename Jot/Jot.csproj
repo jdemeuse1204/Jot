@@ -44,7 +44,6 @@
     <Compile Include="IEncryptionSecret.cs" />
     <Compile Include="IJwtToken.cs" />
     <Compile Include="JwtAuthConfigurationSection.cs" />
-    <Compile Include="JwtClaimPayload.cs" />
     <Compile Include="JwtEncryption.cs" />
     <Compile Include="JwtTokenException.cs" />
     <Compile Include="JwtTokenProvider.cs" />

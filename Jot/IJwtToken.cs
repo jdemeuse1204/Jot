@@ -13,5 +13,13 @@ namespace Jot
         T GetClaim<T>(string claimKey);
 
         object GetClaim(string claimKey);
+
+        void SetClaim(string claimKey, object value);
+
+        T GetHeader<T>(string headerKey);
+
+        object GetHeader(string headerKey);
+
+        void SetHeader(string headerKey, object value);
     }
 }

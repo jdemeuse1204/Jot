@@ -9,6 +9,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web.Script.Serialization;
@@ -18,10 +19,11 @@ namespace Jot
     public class JwtTokenProvider
     {
         #region Constructor
-        public JwtTokenProvider(int jwtTimeOutInMinutes, JwtEncryption encryptionType)
+        public JwtTokenProvider(int jwtTimeOutInMinutes, JwtEncryption encryptionType, bool shouldEncryptHeader)
         {
             JwtTimeout = jwtTimeOutInMinutes;
             EncryptionType = encryptionType;
+            ShouldEncryptHeader = shouldEncryptHeader;
         }
 
         public JwtTokenProvider()
@@ -32,6 +34,7 @@ namespace Jot
 
             JwtTimeout = _getTimeOut(section);
             EncryptionType = _getEncryptionType(section);
+            ShouldEncryptHeader = _shouldEncryptHeader(section);
         }
         #endregion
 
@@ -48,7 +51,7 @@ namespace Jot
 
 
 
-        public delegate JwtClaimPayload OnTokenCreateHandler();
+        public delegate IJwtToken OnTokenCreateHandler(IJwtToken token);
 
         public event OnTokenCreateHandler OnCreate;
 
@@ -60,13 +63,7 @@ namespace Jot
 
 
 
-        public event OnDeserializeHeaderHandler OnDeserializeHeader;
-
-        public delegate Dictionary<string, string> OnDeserializeHeaderHandler(string jsonString);
-
-
-
-        public event OnDeserializeClaimsHandler OnDeserializeClaims;
+        public event OnDeserializeClaimsHandler OnDeserialize;
 
         public delegate Dictionary<string, object> OnDeserializeClaimsHandler(string jsonString);
 
@@ -80,20 +77,29 @@ namespace Jot
 
         public event OnDecryptionHandler OnDecryption;
 
-        public delegate string OnDecryptionHandler(string encryptedString, string secret);
+        public delegate string OnDecryptionHandler(byte[] encryptedBytes, string secret);
+
+
+
+        public event OnGetConnectionIdHandler OnGetConnectionId;
+
+        public delegate string OnGetConnectionIdHandler();
         #endregion
 
         #region Properties and Fields
         public readonly int JwtTimeout;
 
         public readonly JwtEncryption EncryptionType;
+
+        public readonly bool ShouldEncryptHeader;
         #endregion
 
         #region Create
-        public IJwtToken Create(JwtClaimPayload claims)
+        public IJwtToken Create(Dictionary<string, object> extraHeaders, Dictionary<string, object> claims)
         {
             var token = new JwtToken(JwtTimeout);
 
+            // set and add claims
             foreach (var claim in claims)
             {
                 if (!token.ContainsClaimKey(claim.Key)) token.AddClaim(claim.Key);
@@ -101,13 +107,40 @@ namespace Jot
                 token.SetClaim(claim.Key, claim.Value);
             }
 
+            // add extra headers
+            foreach (var header in extraHeaders)
+            {
+                token.AddHeader(header.Key);
+                token.SetHeader(header.Key, header.Value);
+            }
+
+            // try to add the custom connection id
+            _tryAddCustomConnectionId(token);
+
             return token;
         }
 
         public IJwtToken Create()
         {
-            return Create(OnCreate != null ? OnCreate() : new JwtClaimPayload());
+            var section = _getConfigurationSection();
+            var timeOut = _getTimeOut(section);
+            var token = new JwtToken(timeOut);
+
+            // try to add the custom connection id
+            _tryAddCustomConnectionId(token);
+
+            return OnCreate != null ? OnCreate(token) : token;
         }
+
+        private void _tryAddCustomConnectionId(JwtToken token)
+        {
+            // add the connection id to the claims
+            if (OnGetConnectionId == null) return;
+
+            token.AddHeader("cid");
+            token.SetHeader("cid", OnGetConnectionId());
+        }
+
         #endregion
 
         #region Configuration
@@ -124,7 +157,22 @@ namespace Jot
         {
             if (section == null || (!section.SingleEncryption.ElementInformation.IsPresent && !section.TripleEncryption.ElementInformation.IsPresent)) return EncryptionType;
 
-            return (JwtEncryption)Enum.ToObject(typeof(JwtEncryption), Convert.ToInt32(section.SingleEncryption.ElementInformation.IsPresent ? section.SingleEncryption.Type : section.TripleEncryption.Type));
+            return (JwtEncryption)Enum.Parse(typeof(JwtEncryption), section.SingleEncryption.ElementInformation.IsPresent ? section.SingleEncryption.Type : section.TripleEncryption.Type);
+        }
+
+        private bool _shouldEncryptHeader(JwtAuthConfigurationSection section)
+        {
+            if (section.SingleEncryption.ElementInformation.IsPresent)
+            {
+                return section.SingleEncryption.EncryptHeader.HasValue && section.SingleEncryption.EncryptHeader.Value;
+            }
+
+            if (section.TripleEncryption.ElementInformation.IsPresent)
+            {
+                return section.TripleEncryption.EncryptHeader.HasValue && section.TripleEncryption.EncryptHeader.Value;
+            }
+
+            return false;
         }
 
         private int _getTimeOut(JwtAuthConfigurationSection section)
@@ -174,91 +222,29 @@ namespace Jot
 
         #endregion
 
-        #region Encode/Decode
-
-        public IJwtToken Decode(string encodedToken)
-        {
-            var section = _getConfigurationSection();
-
-            return Decode(encodedToken, _getEncryptionSecret(section));
-        }
-
-        public IJwtToken Decode(string encodedToken, IEncryptionSecret encryption)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(encodedToken)) throw new JwtTokenException("Token is not valid.  Encoded token is null");
-
-                // split claim into header, payload, and signature
-                var parts = encodedToken.Split('.');
-
-                // make sure claim is correctly formed
-                if (parts.Length != 3) throw new JwtTokenException("Token is not valid.  Does not consist of three parts");
-
-                // get encoded parts
-                var encodedHeader = parts[0];
-                var encodedClaims = parts[1];
-                var encodedSignature = parts[2];
-
-                var tripleEncryption = encryption as TripleEncryptionSecret;
-                var singleEncryption = (SingleEncryptionSecret)encryption;
-
-                // secrets
-                var isUsingTripleEncryption = tripleEncryption != null;
-                var secretOne = singleEncryption.Secret;
-                var secretTwo = isUsingTripleEncryption ? tripleEncryption.SecretTwo : secretOne;
-                var secretThree = isUsingTripleEncryption ? tripleEncryption.SecretThree : secretOne;
-
-                // decoded parts
-                var decodedHeader = OnDecryption != null ? OnDecryption(encodedHeader, secretOne) : AESThenHMAC.Decrypt(encodedHeader, secretOne, EncryptionType);
-                var decodedClaims = OnDecryption != null ? OnDecryption(encodedClaims, secretTwo) : AESThenHMAC.Decrypt(encodedClaims, secretTwo, EncryptionType);
-                var decodedSignature = OnDecryption != null ? OnDecryption(encodedSignature, secretThree) : AESThenHMAC.Decrypt(encodedSignature, secretThree, EncryptionType);
-
-                if (string.IsNullOrEmpty(decodedHeader)) throw new JwtTokenException("Token is not valid.  Header failed to decode");
-
-                if (string.IsNullOrEmpty(decodedClaims)) throw new JwtTokenException("Token is not valid.  Claims failed to decode");
-
-                if (string.IsNullOrEmpty(decodedSignature)) throw new JwtTokenException("Token is not valid.  Signature failed to decode");
-
-                // split the signature
-                var signatureParts = decodedSignature.Split('.');
-
-                // make sure signature is correctly formed
-                if (signatureParts.Length != 2) throw new JwtTokenException("Token is not valid.  Signature incorrect");
-
-                // get encoded signature parts
-                var encodedHeaderFromSignature = signatureParts[0];
-                var encodedClaimsFromSignature = signatureParts[1];
-
-                // decode signature parts
-                var decodedHeaderFromSignature = OnDecryption != null ? OnDecryption(encodedHeaderFromSignature, secretOne) : AESThenHMAC.Decrypt(encodedHeaderFromSignature, secretOne, EncryptionType);
-                var decodedClaimsFromSignature = OnDecryption != null ? OnDecryption(encodedClaimsFromSignature, secretTwo) : AESThenHMAC.Decrypt(encodedClaimsFromSignature, secretTwo, EncryptionType);
-
-                // verify the signature - check header
-                if (!string.Equals(decodedHeaderFromSignature, decodedHeader)) throw new JwtTokenException("Token is not valid.  Signature verification failed, header does not match");
-
-                // verify the signature - check claims
-                if (!string.Equals(decodedClaimsFromSignature, decodedClaims)) throw new JwtTokenException("Token is not valid.  Signature verification failed, claims do not match");
-
-                var header = OnDeserializeHeader != null ? OnDeserializeHeader(decodedHeader) : Serializer.ToObject<Dictionary<string, string>>(decodedHeader);
-                var claims = OnDeserializeClaims != null ? OnDeserializeClaims(decodedClaims) : Serializer.ToObject<Dictionary<string, object>>(decodedClaims);
-
-                return new JwtToken(header, claims);
-            }
-            catch (Exception ex)
-            {
-                // turn error into Jwt Exception
-                throw new JwtTokenException(ex.Message);
-            }
-        }
-
+        #region Encode
         public string Encode(IJwtToken token, IEncryptionSecret encryption)
         {
             var jwt = token as JwtToken;
 
             if (jwt == null) throw new Exception("Token is not formed correctly");
 
-            return _encode(token, encryption);
+            var tripleEncryption = encryption as TripleEncryptionSecret;
+
+            return tripleEncryption != null ? _encode(token, tripleEncryption) : _encode(token, (SingleEncryptionSecret)encryption);
+        }
+
+        public bool _isEncryptionTwoWay()
+        {
+            switch (EncryptionType)
+            {
+                case JwtEncryption.AesHmac128:
+                case JwtEncryption.AesHmac192:
+                case JwtEncryption.AesHmac256:
+                    return true;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
 
         public string Encode(IJwtToken token)
@@ -271,52 +257,244 @@ namespace Jot
 
             if (section == null) throw new Exception("No secret provided, please provide encryption secret");
 
-            return _encode(token, _getEncryptionSecret(section));
+            return Encode(token, _getEncryptionSecret(section));
         }
 
-        private string _encode(IJwtToken token, IEncryptionSecret encryption)
+        private string _encode(IJwtToken token, SingleEncryptionSecret encryption)
+        {
+            return _encode(token, encryption.Secret, encryption.Secret, encryption.Secret, false);
+        }
+
+        private string _encode(IJwtToken token, TripleEncryptionSecret encryption)
+        {
+            return _encode(token, encryption.Secret, encryption.SecretTwo, encryption.SecretThree, true);
+        }
+
+        private string _encode(IJwtToken token, string secretOne, string secretTwo, string secretThree, bool useTripleEncryption)
         {
             var jwt = token as JwtToken;
-            var section = _getConfigurationSection();
-            var encryptionType = _getEncryptionType(section);
 
             if (jwt == null) throw new Exception("Token is not formed correctly");
 
-            jwt.SetHeader("alg", encryptionType.ToString());
+            jwt.SetHeader("alg", OnEncryption != null ? "Custom" : EncryptionType.ToString());
 
+            // get the headers
             var jwtHeaders = jwt.GetHeaders();
             var jwtClaims = jwt.GetClaims();
 
             // serialize header and claims
-            var header = OnSerialize != null ? OnSerialize(jwtHeaders) : Serializer.ToJSON(jwtHeaders);
-            var claims = OnSerialize != null ? OnSerialize(jwtClaims) : Serializer.ToJSON(jwtClaims);
+            var header = _serializeObject(jwtHeaders);
+            var claims = _serializeObject(jwtClaims);
 
-            var tripleEncryption = encryption as TripleEncryptionSecret;
-            var singleEncryption = (SingleEncryptionSecret)encryption;
+            // header and claim bytes
+            var headerBytes = Encoding.UTF8.GetBytes(header);
+            var claimBytes = Encoding.UTF8.GetBytes(claims);
 
-            // secrets
-            var isUsingTripleEncryption = tripleEncryption != null;
-            var secretOne = singleEncryption.Secret;
-            var secretTwo = isUsingTripleEncryption ? tripleEncryption.SecretTwo : secretOne;
-            var secretThree = isUsingTripleEncryption ? tripleEncryption.SecretThree : secretOne;
+            // segments
+            var headerSegment = UrlEncode.Base64UrlEncode(headerBytes);
+            var claimSegment = UrlEncode.Base64UrlEncode(claimBytes);
 
-            // encrypt
-            var encryptedHeader = OnEncryption != null ? UrlEncode.Base64UrlEncode(OnEncryption(header, secretOne)) : AESThenHMAC.Encrypt(header, secretOne, encryptionType);
-            var encryptedClaims = OnEncryption != null ? UrlEncode.Base64UrlEncode(OnEncryption(claims, secretTwo)) : AESThenHMAC.Encrypt(claims, secretTwo, encryptionType);
+            // encrypted Segments
+            var headerSegmentEncrypted = _encrypt(headerSegment, secretTwo, EncryptionType);
+            var claimsSegmentEncrypted = _encrypt(claimSegment, secretThree, EncryptionType);
 
-            // create payload
-            var payload = string.Concat(encryptedHeader, ".", encryptedClaims);
+            // sign the token
+            var unsignedSignature = string.Concat(headerSegmentEncrypted, ".", claimsSegmentEncrypted);
+            var signatureBytes = Encoding.UTF8.GetBytes(unsignedSignature);
+            var encodedSignature = UrlEncode.Base64UrlEncode(signatureBytes);
+            var signedSignature = _encrypt(encodedSignature, secretOne, EncryptionType);
 
-            // create signature
-            var signature = OnEncryption != null ? UrlEncode.Base64UrlEncode(OnEncryption(payload, secretThree)) : AESThenHMAC.Encrypt(payload, secretThree, encryptionType);
+            // get the final header segment
+            var finalHeaderSegment = ShouldEncryptHeader ? _encrypt(headerSegment, secretOne, EncryptionType) : headerSegment;
 
             // return final result
-            return string.Concat(payload, ".", signature);
+            return string.Concat(finalHeaderSegment, ".", claimSegment, ".", signedSignature);
+        }
+
+        private string _createSignedSignature(string header, string claims, bool useTripleEncryption)
+        {
+        }
+
+        #endregion
+
+        #region Decode
+
+        public IJwtToken Decode(string encodedToken)
+        {
+            var section = _getConfigurationSection();
+
+            return Decode(encodedToken, _getEncryptionSecret(section));
+        }
+
+        public IJwtToken Decode(string encodedToken, IEncryptionSecret encryption)
+        {
+            try
+            {
+                var tripleEncryption = encryption as TripleEncryptionSecret;
+
+                if (tripleEncryption != null)
+                {
+                    return _decode(encodedToken, tripleEncryption.Secret, tripleEncryption.SecretTwo, tripleEncryption.SecretThree);
+                }
+
+                var signleEncryption = (SingleEncryptionSecret) encryption;
+
+                return _decode(encodedToken, signleEncryption.Secret, signleEncryption.Secret, signleEncryption.Secret);
+            }
+            catch (Exception ex)
+            {
+                // turn error into Jwt Exception
+                throw new JwtTokenException(ex.Message);
+            }
+        }
+
+        private class EncodedTokenHelper
+        {
+            private readonly string _encodedToken;
+
+            public EncodedTokenHelper(string encodedToken)
+            {
+                _encodedToken = encodedToken;
+            }
+
+            private string[] _getParts()
+            {
+                if (string.IsNullOrEmpty(_encodedToken)) throw new Exception("Token is not formed correctly.  Token is null.");
+
+                var parts = _encodedToken.Split('.');
+
+                if (parts.Count() != 3) throw new Exception("Token is not formed correctly.  Must have 3 parts.");
+
+                return parts;
+            }
+
+
+            public string GetDecodedHeader()
+            {
+                var parts = _getParts();
+
+                return _uft8AndDecode(parts[0]);
+            }
+
+            public string GetDecodedClaims()
+            {
+                var parts = _getParts();
+
+                return _uft8AndDecode(parts[1]);
+            }
+
+            public string GetSignature()
+            {
+                return _getParts()[2];
+            }
+
+            private string _uft8AndDecode(string value)
+            {
+                return Encoding.UTF8.GetString(UrlEncode.Base64UrlDecode(value));
+            }
+        }
+
+        public IJwtToken _decode(string encodedToken, string secretOne, string secretTwo, string secretThree)
+        {
+            try
+            {
+                var tokenHelper = new EncodedTokenHelper(encodedToken);
+
+                // decoded parts
+                var decodedHeader = tokenHelper.GetDecodedHeader();
+                var decodedClaims = tokenHelper.GetDecodedClaims();
+                var signatureSegment = tokenHelper.GetSignature();
+
+                // deserialize to object
+                var claims = _deserialize(decodedClaims);
+
+                if (!_isEncryptionTwoWay())
+                {
+                    // create signature
+
+                    return new JwtToken(ShouldEncryptHeader ? null : _deserialize(decodedHeader), claims);
+                }
+
+                // finalize header
+                var finalHeader = ShouldEncryptHeader ? _decrypt(UrlEncode.Base64UrlDecode(decodedHeader), secretOne, EncryptionType) : decodedHeader;
+
+                // signature 
+                var signatureCipherText = UrlEncode.Base64UrlDecode(signatureSegment);
+                var signature = _decrypt(signatureCipherText, secretOne, EncryptionType);
+
+                // make sure signature is correct
+                var signatureParts = signature.Split('.');
+
+                if (signatureParts.Count() != 2) throw new Exception("Token is not formed correctly.  Signature must have 2 parts.");
+
+                var signatureHeader = signatureParts[0];
+                var signatureClaims = signatureParts[1];
+
+                // decrypt signature
+                var decryptedSignatureHeader = _decrypt(UrlEncode.Base64UrlDecode(signatureHeader), secretTwo, EncryptionType);
+                var decryptedSignatureClaims = _decrypt(UrlEncode.Base64UrlDecode(signatureClaims), secretThree, EncryptionType);
+
+                // make sure signature header and claims match payload.  
+                if (!string.Equals(decryptedSignatureHeader, finalHeader)) throw new Exception("Token claims from signature do not match claims from payload.  Claim has been tampered with.");
+
+                if (!string.Equals(decryptedSignatureClaims, decodedClaims)) throw new Exception("Token header from signature do not match header from payload.  Claim has been tampered with.");
+
+                var header = _deserialize(finalHeader);
+
+                return new JwtToken(header, claims);
+            }
+            catch (Exception ex)
+            {
+                // turn error into Jwt Exception
+                throw new JwtTokenException(ex.Message);
+            }
+        }
+
+        public Dictionary<string, object> _deserialize(string jsonString)
+        {
+            return OnDeserialize != null ? OnDeserialize(jsonString) : Serializer.ToObject<Dictionary<string, object>>(jsonString);
+        }
+
+        private string _serializeObject(object entity)
+        {
+            return OnSerialize != null ? OnSerialize(entity) : Serializer.ToJSON(entity);
+        }
+
+        private string _encrypt(string message, string secret, JwtEncryption encryptionType)
+        {
+            if (OnEncryption != null) return UrlEncode.Base64UrlEncode(OnEncryption(message, secret));
+
+            switch (encryptionType)
+            {
+                case JwtEncryption.AesHmac128:
+                case JwtEncryption.AesHmac192:
+                case JwtEncryption.AesHmac256:
+                    return UrlEncode.Base64UrlEncode(AESThenHMAC.Encrypt(message, secret, encryptionType));
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(encryptionType), encryptionType, null);
+            }
+        }
+
+
+        private string _decrypt(byte[] cipherText, string secret, JwtEncryption encryptionType)
+        {
+            if (OnDecryption != null) return OnDecryption(cipherText, secret);
+
+            switch (encryptionType)
+            {
+                case JwtEncryption.AesHmac128:
+                case JwtEncryption.AesHmac192:
+                case JwtEncryption.AesHmac256:
+                    return Encoding.UTF8.GetString(UrlEncode.Base64UrlDecode(AESThenHMAC.Decrypt(cipherText, secret, encryptionType)));
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(encryptionType), encryptionType, null);
+            }
         }
 
         #endregion
 
         #region Refresh Token
+
         public IJwtToken Refresh(string encodedToken)
         {
             var token = Decode(encodedToken);
@@ -338,9 +516,11 @@ namespace Jot
 
             return token;
         }
+
         #endregion
 
         #region Validation
+
         public TokenValidationResult Validate(string encodedToken)
         {
             var section = _getConfigurationSection();
@@ -419,9 +599,11 @@ namespace Jot
         }
 
         #region General Checks
+
         // check nbf
         // check exp
         // check iat, cannot be 0
+
         #endregion
 
         #endregion
@@ -444,14 +626,16 @@ namespace Jot
         #endregion
 
         #region Token
+
         //https://stormpath.com/blog/jwt-the-right-way
         //https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32#section-4.1.4
         public class JwtToken : IJwtToken
         {
             #region Properties And Fields
+
             private readonly Dictionary<string, object> _claims;
 
-            private readonly Dictionary<string, string> _header;
+            private readonly Dictionary<string, object> _header;
 
             // headers
             private const string ALG = "alg"; // Encryption Algorithm
@@ -467,36 +651,31 @@ namespace Jot
             private const string NBF = "nbf"; // Not Before
             private const string USR = "usr"; // User
             private const string SUB = "sub"; // Subject
-            
+
             #endregion
+
+            #region Constructor
 
             public JwtToken(int jwtTimeOut)
             {
                 _claims = new Dictionary<string, object>
                 {
-                    {IAT, UnixDateServices.GetUnixTimestamp()},
-                    {EXP, UnixDateServices.GetUnixTimestamp(jwtTimeOut)},
-                    {ROL, ""},
-                    {JTI, Guid.NewGuid()},
-                    {ISS, ""},
-                    {AUD, ""},
-                    {NBF, UnixDateServices.GetUnixTimestamp()},
-                    {SUB, ""},
-                    {USR, ""}
+                    {IAT, UnixDateServices.GetUnixTimestamp()}, {EXP, UnixDateServices.GetUnixTimestamp(jwtTimeOut)}, {ROL, ""}, {JTI, Guid.NewGuid()}, {ISS, ""}, {AUD, ""}, {NBF, UnixDateServices.GetUnixTimestamp()}, {SUB, ""}, {USR, ""}
                 };
 
-                _header = new Dictionary<string, string>
+                _header = new Dictionary<string, object>
                 {
-                    {ALG, ""},
-                    {TYP, "JWT"}
+                    {ALG, ""}, {TYP, "JWT"}
                 };
             }
 
-            public JwtToken(Dictionary<string, string> header, Dictionary<string, object> claims)
+            public JwtToken(Dictionary<string, object> header, Dictionary<string, object> claims)
             {
                 _claims = claims;
                 _header = header;
             }
+
+            #endregion
 
             public void AddClaim(string claimKey)
             {
@@ -513,9 +692,24 @@ namespace Jot
                 _claims[claimKey] = value;
             }
 
+            public T GetHeader<T>(string headerKey)
+            {
+                return typeof(T) == typeof(Guid) ? (T) (dynamic) Guid.Parse(_header[headerKey].ToString()) : (T) Convert.ChangeType(_header[headerKey], typeof(T));
+            }
+
+            public object GetHeader(string headerKey)
+            {
+                return _header[headerKey];
+            }
+
+            public void SetHeader(string headerKey, object value)
+            {
+                _header[headerKey] = value;
+            }
+
             public T GetClaim<T>(string claimKey)
             {
-                return typeof(T) == typeof(Guid) ? (T)(dynamic)Guid.Parse(_claims[claimKey].ToString()) : (T)Convert.ChangeType(_claims[claimKey], typeof(T));
+                return typeof(T) == typeof(Guid) ? (T) (dynamic) Guid.Parse(_claims[claimKey].ToString()) : (T) Convert.ChangeType(_claims[claimKey], typeof(T));
             }
 
             public object GetClaim(string claimKey)
@@ -523,12 +717,12 @@ namespace Jot
                 return _claims[claimKey];
             }
 
-            public void SetHeader(string claimKey, string value)
+            public void AddHeader(string headerKey)
             {
-                _header[claimKey] = value;
+                _header.Add(headerKey, "");
             }
 
-            public Dictionary<string, string> GetHeaders()
+            public Dictionary<string, object> GetHeaders()
             {
                 return _header;
             }
@@ -537,9 +731,8 @@ namespace Jot
             {
                 return _claims;
             }
-
-
         }
+
         #endregion
 
         #region Encryption
@@ -549,6 +742,7 @@ namespace Jot
         private static class UrlEncode
         {
             #region Url Encoding
+
             // From https://tools.ietf.org/html/draft-ietf-jose-json-web-signature-08#appendix-C
             public static string Base64UrlEncode(byte[] payload)
             {
@@ -564,18 +758,23 @@ namespace Jot
                 var s = payload;
                 s = s.Replace('-', '+'); // 62nd char of encoding
                 s = s.Replace('_', '/'); // 63rd char of encoding
-                switch (s.Length % 4) // Pad with trailing '='s
+                switch (s.Length%4) // Pad with trailing '='s
                 {
-                    case 0: break; // No pad chars in this case
-                    case 2: s += "=="; break; // Two pad chars
-                    case 3: s += "="; break; // One pad char
+                    case 0:
+                        break; // No pad chars in this case
+                    case 2:
+                        s += "==";
+                        break; // Two pad chars
+                    case 3:
+                        s += "=";
+                        break; // One pad char
                     default:
-                        throw new System.Exception(
-                 "Illegal base64url string!");
+                        throw new System.Exception("Illegal base64url string!");
                 }
 
                 return Convert.FromBase64String(s); // Standard base64 decoder
             }
+
             #endregion
         }
 
@@ -609,17 +808,17 @@ namespace Jot
             /// Significantly less secure than using random binary keys.
             /// Adds additional non secret payload for key generation parameters.
             /// </remarks>
-            public static string Encrypt(string secretMessage, string password, JwtEncryption encryptionType, byte[] nonSecretPayload = null)
+            public static byte[] Encrypt(string secretMessage, string password, JwtEncryption encryptionType, byte[] nonSecretPayload = null)
             {
                 _encryptionType = encryptionType;
-                _keyBitSize = (int)_encryptionType;
+                _keyBitSize = (int) _encryptionType;
 
                 if (string.IsNullOrEmpty(secretMessage))
                     throw new ArgumentException("Secret Message Required!", "secretMessage");
 
                 var plainText = Encoding.UTF8.GetBytes(secretMessage);
                 var cipherText = _simpleEncryptWithPassword(plainText, password, nonSecretPayload);
-                return UrlEncode.Base64UrlEncode(cipherText);
+                return cipherText;
             }
 
             /// <summary>
@@ -636,48 +835,42 @@ namespace Jot
             /// <remarks>
             /// Significantly less secure than using random binary keys.
             /// </remarks>
-            public static string Decrypt(string encryptedMessage, string password, JwtEncryption encryptionType,
-                                     int nonSecretPayloadLength = 0)
+            public static string Decrypt(byte[] cipherText, string password, JwtEncryption encryptionType, int nonSecretPayloadLength = 0)
             {
                 _encryptionType = encryptionType;
-                _keyBitSize = (int)_encryptionType;
+                _keyBitSize = (int) _encryptionType;
 
-                if (string.IsNullOrWhiteSpace(encryptedMessage))
-                    throw new ArgumentException("Encrypted Message Required!", "encryptedMessage");
+                if (cipherText == null) throw new ArgumentException("Encrypted Message Required!", "cipherText");
 
-                var cipherText = UrlEncode.Base64UrlDecode(encryptedMessage);
                 var plainText = _simpleDecryptWithPassword(cipherText, password, nonSecretPayloadLength);
                 return plainText == null ? null : Encoding.UTF8.GetString(plainText);
             }
 
             #region Helpers
+
             private static byte[] _simpleEncrypt(byte[] secretMessage, byte[] cryptKey, byte[] authKey, byte[] nonSecretPayload = null)
             {
                 //User Error Checks
-                if (cryptKey == null || cryptKey.Length != _keyBitSize / 8)
+                if (cryptKey == null || cryptKey.Length != _keyBitSize/8)
                     throw new ArgumentException(String.Format("Key needs to be {0} bit!", _keyBitSize), "cryptKey");
 
-                if (authKey == null || authKey.Length != _keyBitSize / 8)
+                if (authKey == null || authKey.Length != _keyBitSize/8)
                     throw new ArgumentException(String.Format("Key needs to be {0} bit!", _keyBitSize), "authKey");
 
                 if (secretMessage == null || secretMessage.Length < 1)
                     throw new ArgumentException("Secret Message Required!", "secretMessage");
 
                 //non-secret payload optional
-                nonSecretPayload = nonSecretPayload ?? new byte[] { };
+                nonSecretPayload = nonSecretPayload ?? new byte[] {};
 
                 byte[] cipherText;
                 byte[] iv;
 
                 using (var aes = new AesManaged
                 {
-                    KeySize = _keyBitSize,
-                    BlockSize = _blockBitSize,
-                    Mode = CipherMode.CBC,
-                    Padding = PaddingMode.PKCS7
+                    KeySize = _keyBitSize, BlockSize = _blockBitSize, Mode = CipherMode.CBC, Padding = PaddingMode.PKCS7
                 })
                 {
-
                     //Use random IV
                     aes.GenerateIV();
                     iv = aes.IV;
@@ -694,7 +887,6 @@ namespace Jot
 
                         cipherText = cipherStream.ToArray();
                     }
-
                 }
 
                 //Assemble encrypted message and add authentication
@@ -718,17 +910,15 @@ namespace Jot
                     }
                     return encryptedStream.ToArray();
                 }
-
             }
 
             private static byte[] _simpleDecrypt(byte[] encryptedMessage, byte[] cryptKey, byte[] authKey, int nonSecretPayloadLength = 0)
             {
-
                 //Basic Usage Error Checks
-                if (cryptKey == null || cryptKey.Length != _keyBitSize / 8)
+                if (cryptKey == null || cryptKey.Length != _keyBitSize/8)
                     throw new ArgumentException(String.Format("CryptKey needs to be {0} bit!", _keyBitSize), "cryptKey");
 
-                if (authKey == null || authKey.Length != _keyBitSize / 8)
+                if (authKey == null || authKey.Length != _keyBitSize/8)
                     throw new ArgumentException(String.Format("AuthKey needs to be {0} bit!", _keyBitSize), "authKey");
 
                 if (encryptedMessage == null || encryptedMessage.Length == 0)
@@ -736,10 +926,10 @@ namespace Jot
 
                 using (var hmac = new HMACSHA256(authKey))
                 {
-                    var sentTag = new byte[hmac.HashSize / 8];
+                    var sentTag = new byte[hmac.HashSize/8];
                     //Calculate Tag
                     var calcTag = hmac.ComputeHash(encryptedMessage, 0, encryptedMessage.Length - sentTag.Length);
-                    var ivLength = (_blockBitSize / 8);
+                    var ivLength = (_blockBitSize/8);
 
                     //if message length is to small just return null
                     if (encryptedMessage.Length < sentTag.Length + nonSecretPayloadLength + ivLength)
@@ -759,13 +949,9 @@ namespace Jot
 
                     using (var aes = new AesManaged
                     {
-                        KeySize = _keyBitSize,
-                        BlockSize = _blockBitSize,
-                        Mode = CipherMode.CBC,
-                        Padding = PaddingMode.PKCS7
+                        KeySize = _keyBitSize, BlockSize = _blockBitSize, Mode = CipherMode.CBC, Padding = PaddingMode.PKCS7
                     })
                     {
-
                         //Grab IV from message
                         var iv = new byte[ivLength];
                         Array.Copy(encryptedMessage, nonSecretPayloadLength, iv, 0, iv.Length);
@@ -777,11 +963,7 @@ namespace Jot
                             using (var binaryWriter = new BinaryWriter(decrypterStream))
                             {
                                 //Decrypt Cipher Text from Message
-                                binaryWriter.Write(
-                                  encryptedMessage,
-                                  nonSecretPayloadLength + iv.Length,
-                                  encryptedMessage.Length - nonSecretPayloadLength - iv.Length - sentTag.Length
-                                );
+                                binaryWriter.Write(encryptedMessage, nonSecretPayloadLength + iv.Length, encryptedMessage.Length - nonSecretPayloadLength - iv.Length - sentTag.Length);
                             }
                             //Return Plain Text
                             return plainTextStream.ToArray();
@@ -792,7 +974,7 @@ namespace Jot
 
             private static byte[] _simpleEncryptWithPassword(byte[] secretMessage, string password, byte[] nonSecretPayload = null)
             {
-                nonSecretPayload = nonSecretPayload ?? new byte[] { };
+                nonSecretPayload = nonSecretPayload ?? new byte[] {};
 
                 //User Error Checks
                 if (string.IsNullOrWhiteSpace(password) || password.Length < _minPasswordLength)
@@ -801,7 +983,7 @@ namespace Jot
                 if (secretMessage == null || secretMessage.Length == 0)
                     throw new ArgumentException("Secret Message Required!", "secretMessage");
 
-                var payload = new byte[((_saltBitSize / 8) * 2) + nonSecretPayload.Length];
+                var payload = new byte[((_saltBitSize/8)*2) + nonSecretPayload.Length];
 
                 Array.Copy(nonSecretPayload, payload, nonSecretPayload.Length);
                 int payloadIndex = nonSecretPayload.Length;
@@ -809,12 +991,12 @@ namespace Jot
                 byte[] cryptKey;
                 byte[] authKey;
                 //Use Random Salt to prevent pre-generated weak password attacks.
-                using (var generator = new Rfc2898DeriveBytes(password, _saltBitSize / 8, _iterations))
+                using (var generator = new Rfc2898DeriveBytes(password, _saltBitSize/8, _iterations))
                 {
                     var salt = generator.Salt;
 
                     //Generate Keys
-                    cryptKey = generator.GetBytes(_keyBitSize / 8);
+                    cryptKey = generator.GetBytes(_keyBitSize/8);
 
                     //Create Non Secret Payload
                     Array.Copy(salt, 0, payload, payloadIndex, salt.Length);
@@ -823,12 +1005,12 @@ namespace Jot
 
                 //Deriving separate key, might be less efficient than using HKDF, 
                 //but now compatible with RNEncryptor which had a very similar wireformat and requires less code than HKDF.
-                using (var generator = new Rfc2898DeriveBytes(password, _saltBitSize / 8, _iterations))
+                using (var generator = new Rfc2898DeriveBytes(password, _saltBitSize/8, _iterations))
                 {
                     var salt = generator.Salt;
 
                     //Generate Keys
-                    authKey = generator.GetBytes(_keyBitSize / 8);
+                    authKey = generator.GetBytes(_keyBitSize/8);
 
                     //Create Rest of Non Secret Payload
                     Array.Copy(salt, 0, payload, payloadIndex, salt.Length);
@@ -846,8 +1028,8 @@ namespace Jot
                 if (encryptedMessage == null || encryptedMessage.Length == 0)
                     throw new ArgumentException("Encrypted Message Required!", "encryptedMessage");
 
-                var cryptSalt = new byte[_saltBitSize / 8];
-                var authSalt = new byte[_saltBitSize / 8];
+                var cryptSalt = new byte[_saltBitSize/8];
+                var authSalt = new byte[_saltBitSize/8];
 
                 //Grab Salt from Non-Secret Payload
                 Array.Copy(encryptedMessage, nonSecretPayloadLength, cryptSalt, 0, cryptSalt.Length);
@@ -859,18 +1041,20 @@ namespace Jot
                 //Generate crypt key
                 using (var generator = new Rfc2898DeriveBytes(password, cryptSalt, _iterations))
                 {
-                    cryptKey = generator.GetBytes(_keyBitSize / 8);
+                    cryptKey = generator.GetBytes(_keyBitSize/8);
                 }
                 //Generate auth key
                 using (var generator = new Rfc2898DeriveBytes(password, authSalt, _iterations))
                 {
-                    authKey = generator.GetBytes(_keyBitSize / 8);
+                    authKey = generator.GetBytes(_keyBitSize/8);
                 }
 
                 return _simpleDecrypt(encryptedMessage, cryptKey, authKey, cryptSalt.Length + authSalt.Length + nonSecretPayloadLength);
             }
+
             #endregion
         }
+
         #endregion
 
         #region Date Services 
@@ -899,6 +1083,7 @@ namespace Jot
                 return _unixEpoch().AddSeconds(unixTimestamp);
             }
         }
+
         #endregion
     }
 }

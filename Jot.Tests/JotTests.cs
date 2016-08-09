@@ -665,7 +665,7 @@ namespace Jot.Tests
                 wasSerializationRun = true;
                 return Serializer.ToJSON(serialize);
             };
-            provider.OnDeserializeClaims += jsonString =>
+            provider.OnDeserialize += jsonString =>
             {
                 wasDeserializeClaimsRun = true;
                 return
