@@ -13,7 +13,7 @@ namespace Jot.Console
         {
 
             var userId = Guid.NewGuid();
-            var provider = new JwtTokenProvider();
+            var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
 
             provider.OnGetGhostClaims += () => new Dictionary<string, object> {{"cid", userId } };
 
