@@ -6,6 +6,7 @@
  * Copyright (c) 2016 James Demeuse
  */
 
+using System;
 using System.Configuration;
 
 namespace Jot
@@ -16,9 +17,7 @@ namespace Jot
 
         private const string _tokenSectionName = "Token";
 
-        private const string _singleEncryptionSectionName = "SingleEncryption";
-
-        private const string _tripleEncryptionSectionName = "TripleEncryption";
+        private const string _encryptionSectionName = "Encryption";
 
         [ConfigurationProperty(_tokenSectionName)]
         public TokenConfigurationElement Token
@@ -29,23 +28,59 @@ namespace Jot
             }
         }
 
-        [ConfigurationProperty(_singleEncryptionSectionName, IsRequired = false)]
-        public SingleEncryptionConfigurationElement SingleEncryption
+        [ConfigurationProperty(_encryptionSectionName, IsRequired = false)]
+        public EncryptionConfigurationElement Encryption
         {
             get
             {
-                return (SingleEncryptionConfigurationElement)base[_singleEncryptionSectionName];
+                return (EncryptionConfigurationElement)base[_encryptionSectionName];
             }
         }
 
-        [ConfigurationProperty(_tripleEncryptionSectionName, IsRequired = false)]
-        public TripleEncryptionConfigurationElement TripleEncryption
+        #region Methods
+        public string GetEncryptionSecret()
         {
-            get
-            {
-                return (TripleEncryptionConfigurationElement)base[_tripleEncryptionSectionName];
-            }
+            return Encryption.Secret;
         }
+
+        public HashAlgorithm GetHashAlgorithm()
+        {
+            return (HashAlgorithm)Enum.Parse(typeof(HashAlgorithm), Encryption.Type);
+        }
+
+        public int GetTimeOut()
+        {
+            return Convert.ToInt32(Token.TimeOut);
+        }
+
+        public bool UseGhostClaims()
+        {
+            return Encryption.UseGhostClaims.HasValue && Encryption.UseGhostClaims.Value;
+        }
+
+        public bool AnonymousAlgorithmInHeader()
+        {
+            return Token.AnonymousAlgorithmInHeader.HasValue && Token.AnonymousAlgorithmInHeader.Value;
+        }
+
+        public void CheckConfigurationIsValid()
+        {
+            // check token
+            if (string.IsNullOrEmpty(Token.TimeOut)) throw new JwtTokenException("Config error.  Token TimeOut is blank or missing");
+
+            int value;
+
+            if (!int.TryParse(Token.TimeOut, out value)) throw new JwtTokenException("Config error.  Token TimeOut is not an integer");
+
+            // check encryption service
+
+            if (!Encryption.ElementInformation.IsPresent) throw new JwtTokenException("Config error.  Encryption missing.");
+
+            if (Encryption.Secret.Length < 12) throw new JwtTokenException("Config error.  Secret length must be at least 12 characters");
+
+            if (string.IsNullOrEmpty(Encryption.Type)) throw new JwtTokenException("Config error.  Encryption type is not set.");
+        }
+        #endregion
     }
 
     public sealed class TokenConfigurationElement : ConfigurationElement
@@ -59,10 +94,27 @@ namespace Jot
                 return base["timeOut"] as string;
             }
         }
+
+        [ConfigurationProperty("anonymousAlgorithmInHeader", IsRequired = false)]
+        public bool? AnonymousAlgorithmInHeader
+        {
+            get
+            {
+                return base["anonymousAlgorithmInHeader"] as bool?;
+            }
+        }
     }
 
-    public sealed class SingleEncryptionConfigurationElement : ConfigurationElement
+    public sealed class EncryptionConfigurationElement : ConfigurationElement
     {
+        [ConfigurationProperty("useGhostClaims", IsRequired = false)]
+        public bool? UseGhostClaims
+        {
+            get
+            {
+                return base["useGhostClaims"] as bool?;
+            }
+        }
 
         [ConfigurationProperty("type", IsRequired = true)]
         public string Type
@@ -79,64 +131,6 @@ namespace Jot
             get
             {
                 return base["secret"] as string;
-            }
-        }
-
-        [ConfigurationProperty("encryptHeader", IsRequired = false)]
-        public bool? EncryptHeader
-        {
-            get
-            {
-                return base["encryptHeader"] as bool?;
-            }
-        }
-    }
-
-    public sealed class TripleEncryptionConfigurationElement : ConfigurationElement
-    {
-
-        [ConfigurationProperty("type", IsRequired = true)]
-        public string Type
-        {
-            get
-            {
-                return base["type"] as string;
-            }
-        }
-
-        [ConfigurationProperty("secretOne", IsRequired = true)]
-        public string SecretOne
-        {
-            get
-            {
-                return base["secretOne"] as string;
-            }
-        }
-
-        [ConfigurationProperty("secretTwo", IsRequired = true)]
-        public string SecretTwo
-        {
-            get
-            {
-                return base["secretTwo"] as string;
-            }
-        }
-
-        [ConfigurationProperty("secretThree", IsRequired = true)]
-        public string SecretThree
-        {
-            get
-            {
-                return base["secretThree"] as string;
-            }
-        }
-
-        [ConfigurationProperty("encryptHeader", IsRequired = false)]
-        public bool? EncryptHeader
-        {
-            get
-            {
-                return base["encryptHeader"] as bool?;
             }
         }
     }

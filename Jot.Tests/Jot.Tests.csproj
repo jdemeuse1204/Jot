@@ -35,8 +35,15 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Web.Extensions" />
+    <Reference Include="Telerik.JustMock">
+      <HintPath>C:\Program Files (x86)\Telerik\JustMock\Libraries\Telerik.JustMock.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <Choose>
     <When Condition="('$(VisualStudioVersion)' == '10.0' or '$(VisualStudioVersion)' == '') and '$(TargetFrameworkVersion)' == 'v3.5'">
@@ -51,10 +58,15 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <Compile Include="JotTests.cs" />
+    <Compile Include="JotEventTests.cs" />
+    <Compile Include="JotGeneralTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Jot.Tests.Common\Jot.Tests.Common.csproj">
+      <Project>{855ac636-bb51-4d04-8e42-fb1c81238891}</Project>
+      <Name>Jot.Tests.Common</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Jot\Jot.csproj">
       <Project>{9a7212da-55dc-431d-b4a5-8ee99b323773}</Project>
       <Name>Jot</Name>
@@ -62,6 +74,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="packages.config" />
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">

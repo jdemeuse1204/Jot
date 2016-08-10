@@ -15,6 +15,7 @@ namespace Jot
     {
         public JwtValidationContainer()
         {
+            CheckNfb = true;
             _customChecks = new Dictionary<string, object>();
         }
 

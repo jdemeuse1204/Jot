@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Linq;
 
@@ -7,14 +8,10 @@ namespace Jot.Tests.NoConfig
     [TestClass]
     public class JotTestsNoConfig
     {
-        #region Tests Using the Configuration
-
-        #region Token Creation
-
         [TestMethod]
         public void CreateClaimWithNoPayload()
         {
-            var provider = new JwtTokenProvider(30, JwtEncryption.AesHmac256);
+            var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
 
             var token = provider.Create();
 
@@ -24,9 +21,9 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void CreateClaimWithPayload()
         {
-            var provider = new JwtTokenProvider(30, JwtEncryption.AesHmac256);
+            var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
 
-            var payload = new JwtClaimPayload
+            var payload = new Dictionary<string, object>
             {
                     {"iat", ""},
                     {"exp", ""},
@@ -47,7 +44,7 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void CheckDefaultCreationValues()
         {
-            var provider = new JwtTokenProvider(30, JwtEncryption.AesHmac256);
+            var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
 
             var token = provider.Create();
 
@@ -62,9 +59,9 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void CreateClaimWithPayloadAndMakeSureValuesAreSet()
         {
-            var provider = new JwtTokenProvider(30, JwtEncryption.AesHmac256);
+            var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
 
-            var payload = new JwtClaimPayload
+            var payload = new Dictionary<string, object>
             {
                     {"iat", ""},
                     {"exp", ""},
@@ -89,25 +86,18 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void MakeSureClaimIsEncryptedCorrectly()
         {
-            var provider = new JwtTokenProvider(30, JwtEncryption.AesHmac256);
-            var encryptionPackage = new SingleEncryptionSecret("jsdfkjhsldjfls");
+            var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
 
-            provider.OnCreate += () =>
+            provider.OnCreate += (jwt) =>
             {
-                return new JwtClaimPayload
-                {
-                    {"iss", "IssuedByMe!"}
-                };
+                jwt.SetClaim("iss", "IssuedByMe!");
             };
 
             var token = provider.Create();
 
-            var jwt = provider.Encode(token, encryptionPackage);
+            var encodedToken = provider.Encode(token, "kjsdkfjgosdjfgoi");
 
-            Assert.IsTrue(jwt.Split('.').Count() == 3);
+            Assert.IsTrue(encodedToken.Split('.').Count() == 3);
         }
-        #endregion
-
-        #endregion
     }
 }

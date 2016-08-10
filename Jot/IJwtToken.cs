@@ -16,10 +16,15 @@ namespace Jot
 
         void SetClaim(string claimKey, object value);
 
+        bool ClaimExists(string claimKey);
+
+
         T GetHeader<T>(string headerKey);
 
         object GetHeader(string headerKey);
 
         void SetHeader(string headerKey, object value);
+
+        bool HeaderExists(string headerKey);
     }
 }

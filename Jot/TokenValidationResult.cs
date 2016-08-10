@@ -12,10 +12,11 @@ namespace Jot
     {
         NotBeforeFailed,
         TokenExpired,
+        TokenNotCorrectlyFormed,
+        SignatureNotValid,
         OnTokenValidateFailed,
         OnJtiValidateFailed,
         CustomCheckFailed,
-        Other,
         Passed
     }
 }

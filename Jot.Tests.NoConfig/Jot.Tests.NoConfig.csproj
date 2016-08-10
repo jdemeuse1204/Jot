@@ -54,6 +54,10 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Jot.Tests.Common\Jot.Tests.Common.csproj">
+      <Project>{855ac636-bb51-4d04-8e42-fb1c81238891}</Project>
+      <Name>Jot.Tests.Common</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Jot\Jot.csproj">
       <Project>{9a7212da-55dc-431d-b4a5-8ee99b323773}</Project>
       <Name>Jot</Name>
