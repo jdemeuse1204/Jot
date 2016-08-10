@@ -1,5 +1,5 @@
 # Jot
-**Jot** is a .NET library for use with JSON Web Tokens (JWT).  Jot will take care of all your JWT creation, encryption, and verification for you.  **Jot** was made extremely flexible, if you want to use your own encryption algorithm, serialization, or set custom claims it's all there for you. JWT verification done right!
+**Jot** is a .NET library for use with JSON Web Tokens (JWT).  Jot will take care of all your JWT creation, encryption(hashing), and verification for you.  **Jot** was made extremely flexible, if you want to use your own hash algorithm, serialization, or set custom claims it's all there for you.  What set's **Jot** apart from others is the ability to use **Ghost Claims**.  This feature helps guard against a JWT being decoded by someone you do not want decoding your JWT.  See below for an explanation on **Ghost Claims**.  **Jot** was built on .NET 4.0.
 
 ## Current Version
 1.0.0
@@ -9,78 +9,98 @@ Jot is very easy to get started, use nuget to add the reference to your project
 
 #Token Creation
 
-## Creating a Token
+## Creating a JWT using the app/web config
+Please see the config section on how to configure your project to use the config settings.
 ```C#
 public string GetNewToken()
 {
   // the constructor values do not need to be used if you are using the app/web config
-  // for the example we will pretend we are not the config
-  // see below how to use the config
-  var provider = new JwtTokenProvider(30, JwtEncryption.AesHmac256);
-  
-  // if you use the config this is not needed either
-  var encryptionPackage = new SingleEncryptionSecret("SomeCoolSecret");
+  // in this example we are using the configuration file found 
+  // in the Jot App/Web Configuration section
+  var provider = new JwtTokenProvider();
   
   // iat, exp, and nbf are always set by default
-  // unless you override claims creation
+  // unless you wish to set them to different values
+  // see the Adding/Setting claims section
   var token = provider.Create();
 
   // here is your encoded token.  Use as you please
-  return provider.Encode(token, encryptionPackage);
-}
-```
-## Setting Claims Values
-
-1. Option 1
-
-```C#
-public string GetNewToken()
-{
-  // the constructor values do not need to be used if you are using the app/web config
-  // for the example we will pretend we are not the config
-  // see below how to use the config
-  var provider = new JwtTokenProvider(30, JwtEncryption.AesHmac256);
-  
-  // if you use the config this is not needed either
-  var encryptionPackage = new SingleEncryptionSecret("SomeCoolSecret");
-  
-  // Since the claim already exists the value will 
-  // be set, the claim will not attempt to be added since
-  // it exists
-  var payload = new JwtClaimPayload
-  {
-    {"iss", "IssuedByMe!"}
-  };
-  
-  var token = provider.Create(payload);
-
-  return provider.Encode(token, encryptionPackage);
+  return provider.Encode(token);
 }
 ```
 
-2. Option 2
-
+## Creating a JWT NOT using the app/web config
 ```C#
 public string GetNewToken()
 {
+  var secret = "SomeCoolSecret!";
+
   // the constructor values do not need to be used if you are using the app/web config
-  // for the example we will pretend we are not the config
-  // see below how to use the config
-  var provider = new JwtTokenProvider(30, JwtEncryption.AesHmac256);
+  // in this example we are using the configuration file found 
+  // in the Jot App/Web Configuration section
+  var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
   
-  // if you use the config this is not needed either
-  var encryptionPackage = new SingleEncryptionSecret("SomeCoolSecret");
+  // iat, exp, and nbf are always set by default
+  // unless you wish to set them to different values
+  // see the Adding/Setting claims section
+  var token = provider.Create();
+
+  // here is your encoded token.  Use as you please
+  return provider.Encode(token, secret);
+}
+```
+
+## Adding/Setting Claims
+Here is a list of all the default claims (https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32#section-4.1.4)
+- iat => "Issued At"
+- exp => "Expiration"
+- rol => "Role"
+- jti => "Claim Id"
+- iss => "Issuer"
+- aud => "Audience"
+- nbf => "Not Before"
+- sub => "Subject"
+- usr => "User"
+
+1. Adding a new claim - SetClaim method
+
+```C#
+public string AddingANewClaim()
+{
+  // please note, assume this example uses the config
+  // for all configuration options
+  var provider = new JwtTokenProvider();
+  
+  // iat, exp, and nbf are always set by default
+  // unless you wish to set them to different values
+  // see the Adding/Setting claims section
+  var token = provider.Create();
+  
+  // there is no "add" claim, if the key does
+  // not exist it will be added
+  token.SetClaim("claimKey","claimValue");
+
+  // here is your encoded token.  Use as you please
+  return provider.Encode(token);
+}
+```
+
+2. Adding a new claim - Using OnCreate handler
+
+```C#
+public string AddClaimUsingOnCreateHandler()
+{
+  // please note, assume this example uses the config
+  // for all configuration options
+  var provider = new JwtTokenProvider();
   
   // Override the OnCreate method and return the claims
   // you wish to set.  The idea way to do this is
   // inherit from JwtTokenProvider and set this method
   // on the constructor
-  provider.OnCreate += () =>
+  provider.OnCreate += (tkn) =>
   {
-      return new JwtClaimPayload
-      {
-          {"iss", "IssuedByMe!"}
-      };
+    tkn.SetClaim("claimKey", "claimValue");
   };
   
   var token = provider.Create(payload);
