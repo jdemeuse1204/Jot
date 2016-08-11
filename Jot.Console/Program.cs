@@ -27,22 +27,6 @@ namespace Jot.Console
             {
 
             }
-
-            // Setup
-
-            // Creating a Token
-
-                // Setting claims
-
-
-            // Encoding a Token
-
-            // Decoding a Token
-
-            // Checking token Validity
-
-
-            // 
         }
     }
 }

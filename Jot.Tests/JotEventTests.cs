@@ -119,7 +119,7 @@ namespace Jot.Tests
 
             var token = provider.Create();
 
-            Assert.AreEqual(token.GetClaim<string>(JotDefaultClaims.ISS), "test");
+            Assert.AreEqual(token.GetClaim<string>(JotDefaultClaims.ISS), "");
         }
 
         [TestMethod]
