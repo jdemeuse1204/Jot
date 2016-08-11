@@ -39,7 +39,7 @@ namespace Jot
         #endregion
 
         #region Events
-        public delegate bool OnJtiValidateHandler(Guid jti);
+        public delegate bool OnJtiValidateHandler(Guid jti, IJotToken token);
 
         public event OnJtiValidateHandler OnJtiValidate;
 
@@ -367,6 +367,20 @@ namespace Jot
             return Validate(encodedToken, secret, new JotValidationContainer());
         }
 
+        private bool _shouldValidateClaim(JotValidationContainer validationContainer, string claimKey)
+        {
+            var claimsToSkip = validationContainer.GetSkipClaimVerificaitons();
+
+            return !claimsToSkip.Contains(claimKey);
+        }
+
+        private bool _shouldSkipClaim(JotValidationContainer validationContainer, string claimKey)
+        {
+            var claimsToSkip = validationContainer.GetSkipClaimVerificaitons();
+
+            return claimsToSkip.Contains(claimKey);
+        }
+
         public TokenValidationResult Validate(string encodedToken, string secret, JotValidationContainer validationContainer)
         {
             var token = Decode(encodedToken);
@@ -382,37 +396,42 @@ namespace Jot
 
             if (!string.Equals(signatureFromToken, recreatedSignedSignature)) return TokenValidationResult.SignatureNotValid;
 
-            var jti = jwt.GetClaim<Guid>(JotDefaultClaims.JTI);
+            var jti = token.ClaimExists(JotDefaultClaims.JTI) ? jwt.GetClaim<Guid>(JotDefaultClaims.JTI) : Guid.Empty;
             var nbf = jwt.GetClaim<double>(JotDefaultClaims.NBF);
             var exp = jwt.GetClaim<double>(JotDefaultClaims.EXP);
-
-            // check iat, cannot be 0
+            var iat = jwt.GetClaim<double>(JotDefaultClaims.IAT);
 
             // check nbf
             var currentUnixTime = UnixDateServices.GetUnixTimestamp();
             var isNbfValid = true;
+            var isIatValid = true;
+            var isExpirationValid = true;
 
-            if (validationContainer.CheckNfb)
-            {
-                // Not Before should not be before current time
-                isNbfValid = nbf <= currentUnixTime;
-            }
+            if (_shouldValidateClaim(validationContainer, JotDefaultClaims.NBF)) isNbfValid = nbf <= currentUnixTime; // Not Before should not be before current time
+
+            if (_shouldValidateClaim(validationContainer, JotDefaultClaims.IAT)) isIatValid = Math.Abs(iat) > 0 && iat <= currentUnixTime;
 
             if (!isNbfValid) return TokenValidationResult.NotBeforeFailed;
 
+            if (!isIatValid) return TokenValidationResult.CreatedTimeCheckFailed;
+
             // check expiration date
-            if (currentUnixTime >= exp) return TokenValidationResult.TokenExpired;
+            if (_shouldValidateClaim(validationContainer, JotDefaultClaims.EXP)) isExpirationValid = currentUnixTime < exp;
+
+            if (!isExpirationValid) return TokenValidationResult.TokenExpired;
 
             // check the custom handler after everything.  
             // potentially saves in processing time if the claim is expired
-            if (OnTokenValidate != null && !OnTokenValidate(jwt)) return TokenValidationResult.OnTokenValidateFailed;
+            if (OnTokenValidate != null && !_shouldSkipClaim(validationContainer, JotDefaultClaims.JTI) && !OnTokenValidate(jwt)) return TokenValidationResult.OnTokenValidateFailed;
 
-            if (OnJtiValidate != null && !OnJtiValidate(jti)) return TokenValidationResult.OnJtiValidateFailed;
+            if (OnJtiValidate != null && !OnJtiValidate(jti, token)) return TokenValidationResult.OnJtiValidateFailed;
 
-            if (!validationContainer.Any()) return TokenValidationResult.Passed;
+            if (!validationContainer.AnyCustomChecks()) return TokenValidationResult.Passed;
+
+            var customChecks = validationContainer.GetCustomClaimVerifications();
 
             // perform custom checks
-            foreach (var item in validationContainer)
+            foreach (var item in customChecks)
             {
                 var claim = jwt.GetClaim(item.Key);
 

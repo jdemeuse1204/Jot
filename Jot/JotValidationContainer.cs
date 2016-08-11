@@ -6,41 +6,50 @@
  * Copyright (c) 2016 James Demeuse
  */
 
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Jot
 {
-    public class JotValidationContainer : IEnumerable<KeyValuePair<string, object>>
+    public class JotValidationContainer
     {
         public JotValidationContainer()
         {
-            CheckNfb = true;
             _customChecks = new Dictionary<string, object>();
+            _skipClaimVerifications = new List<string>();
         }
-
-        public bool CheckNfb { get; set; }
 
         private readonly Dictionary<string, object> _customChecks;
 
-        public bool Any()
+        private readonly List<string> _skipClaimVerifications;
+
+        public bool AnyCustomChecks()
         {
             return _customChecks != null && _customChecks.Count > 0;
         }
 
-        public void AddCustomCheck(string claimKey, object expectedValue)
+        public bool AnySkipClaimVerificaitons()
+        {
+            return _skipClaimVerifications != null && _skipClaimVerifications.Count > 0;
+        }
+
+        public void SkipClaimVerification(string claimKey)
+        {
+            _skipClaimVerifications.Add(claimKey);
+        }
+
+        public void AddCustomClaimVerification(string claimKey, object expectedValue)
         {
             _customChecks.Add(claimKey, expectedValue);
         }
 
-        public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
+        public Dictionary<string, object> GetCustomClaimVerifications()
         {
-            foreach (var claim in _customChecks) yield return claim;
+            return _customChecks;
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
+        public IEnumerable<string> GetSkipClaimVerificaitons()
         {
-            return GetEnumerator();
+            return _skipClaimVerifications;
         }
     }
 }

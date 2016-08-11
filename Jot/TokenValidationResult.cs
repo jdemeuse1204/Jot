@@ -17,6 +17,7 @@ namespace Jot
         OnTokenValidateFailed,
         OnJtiValidateFailed,
         CustomCheckFailed,
+        CreatedTimeCheckFailed,
         Passed
     }
 }

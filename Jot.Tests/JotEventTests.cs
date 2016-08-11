@@ -102,7 +102,7 @@ namespace Jot.Tests
             _jti = jti;
         }
 
-        private bool OnOnJtiValidate(Guid jti)
+        private bool OnOnJtiValidate(Guid jti, IJotToken token)
         {
             return _jti == jti;
         }
@@ -163,8 +163,7 @@ namespace Jot.Tests
 
             var validationContainer = new JotValidationContainer();
 
-            validationContainer.CheckNfb = true;
-            validationContainer.AddCustomCheck("tst", "tst");
+            validationContainer.AddCustomClaimVerification("tst", "tst");
 
             var encodedToken = jot.Encode(token);
 

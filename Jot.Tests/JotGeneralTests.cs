@@ -165,5 +165,57 @@ namespace Jot.Tests
 
             Assert.IsTrue(validationResult == TokenValidationResult.TokenExpired);
         }
+
+        [TestMethod]
+        public void MakeSureIatClaimIsWorking()
+        {
+            var jot = new JotProvider();
+
+            var token = jot.Create();
+
+            token.SetClaim(JotDefaultClaims.IAT, 0);
+
+            var jwt = jot.Encode(token);
+
+            var validationResult = jot.Validate(jwt);
+
+            Assert.IsTrue(validationResult == TokenValidationResult.CreatedTimeCheckFailed);
+        }
+
+        [TestMethod]
+        public void MakeSureIatClaimIsWorking_SetIatToFutureDate()
+        {
+            var jot = new JotProvider();
+
+            var token = jot.Create();
+
+            token.SetClaim(JotDefaultClaims.IAT, UnixDateServices.GetUnixTimestamp(600));
+
+            var jwt = jot.Encode(token);
+
+            var validationResult = jot.Validate(jwt);
+
+            Assert.IsTrue(validationResult == TokenValidationResult.CreatedTimeCheckFailed);
+        }
+
+        [TestMethod]
+        public void MakeSureIatClaimIsWorking_SetIatToFutureDate_Skip()
+        {
+            var jot = new JotProvider();
+
+            var token = jot.Create();
+
+            token.SetClaim(JotDefaultClaims.IAT, UnixDateServices.GetUnixTimestamp(600));
+
+            var validationContainer = new JotValidationContainer();
+
+            validationContainer.SkipClaimVerification(JotDefaultClaims.IAT);
+
+            var jwt = jot.Encode(token);
+
+            var validationResult = jot.Validate(jwt, validationContainer);
+
+            Assert.IsTrue(validationResult == TokenValidationResult.Passed);
+        }
     }
 }
