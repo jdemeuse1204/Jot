@@ -145,9 +145,10 @@ Please keep in mind **Jot** uses hashing, not encrypting.  Encryption is reversi
 <br/>
 <br/>
 Built-in Hash Options
--HS256
--HS384
--HS512
+
++ HS256
++ HS384
++ HS512
 
 1.  OnHash handler
 If you do not want to use the built in hash methods, you may use your own.  See below
@@ -251,6 +252,7 @@ TokenValidationResult
 -OnTokenValidateFailed,
 -OnJtiValidateFailed,
 -CustomCheckFailed,
+-CreatedTimeCheckFailed,
 -Passed
 
 1.  Default Verificaiton
@@ -278,7 +280,12 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
   var validationContainer = new JotValidationContainer();
   
   // here we are telling the Not Before (nbf) claim to be skipped
+  // default is set to true
   validationContainer.CheckNfb = false;
+  
+  // here we are telling the Creation Date (iat) claim to be skipped
+  // default is set to true
+  validationContainer.CheckIat = false;
   
   // here we are adding a custom check to the Issuer (iss) claim
   // the claim must equal github.com
