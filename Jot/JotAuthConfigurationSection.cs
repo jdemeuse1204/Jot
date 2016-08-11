@@ -11,7 +11,7 @@ using System.Configuration;
 
 namespace Jot
 {
-    public sealed class JwtAuthConfigurationSection : ConfigurationSection
+    public sealed class JotAuthConfigurationSection : ConfigurationSection
     {
         public const string SectionName = "Jot";
 
@@ -66,19 +66,19 @@ namespace Jot
         public void CheckConfigurationIsValid()
         {
             // check token
-            if (string.IsNullOrEmpty(Token.TimeOut)) throw new JwtTokenException("Config error.  Token TimeOut is blank or missing");
+            if (string.IsNullOrEmpty(Token.TimeOut)) throw new JotException("Config error.  Token TimeOut is blank or missing");
 
             int value;
 
-            if (!int.TryParse(Token.TimeOut, out value)) throw new JwtTokenException("Config error.  Token TimeOut is not an integer");
+            if (!int.TryParse(Token.TimeOut, out value)) throw new JotException("Config error.  Token TimeOut is not an integer");
 
             // check encryption service
 
-            if (!Encryption.ElementInformation.IsPresent) throw new JwtTokenException("Config error.  Encryption missing.");
+            if (!Encryption.ElementInformation.IsPresent) throw new JotException("Config error.  Encryption missing.");
 
-            if (Encryption.Secret.Length < 12) throw new JwtTokenException("Config error.  Secret length must be at least 12 characters");
+            if (Encryption.Secret.Length < 12) throw new JotException("Config error.  Secret length must be at least 12 characters");
 
-            if (string.IsNullOrEmpty(Encryption.Type)) throw new JwtTokenException("Config error.  Encryption type is not set.");
+            if (string.IsNullOrEmpty(Encryption.Type)) throw new JotException("Config error.  Encryption type is not set.");
         }
         #endregion
     }

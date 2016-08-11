@@ -10,7 +10,7 @@ using Newtonsoft.Json;
 namespace Jot.Tests
 {
     #region Token Providers
-    public class TestJwtTokenProvider : JwtTokenProvider
+    public class TestJwtTokenProvider : Jot
     {
         public TestJwtTokenProvider()
         {
@@ -37,20 +37,20 @@ namespace Jot.Tests
             return JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonString);
         }
 
-        public void OnOnCreate(IJwtToken token)
+        public void OnOnCreate(IJotToken token)
         {
-            token.SetClaim(JwtDefaultClaims.ISS, "test");
+            token.SetClaim(JotDefaultClaims.ISS, "test");
         }
     }
 
-    public class TestValidateJwtTokenProvider : JwtTokenProvider
+    public class TestValidateJwtTokenProvider : Jot
     {
         public TestValidateJwtTokenProvider()
         {
             OnTokenValidate += OnOnTokenValidate;
         }
 
-        private bool OnOnTokenValidate(IJwtToken token)
+        private bool OnOnTokenValidate(IJotToken token)
         {
             var claimValue = token.GetClaim("tst");
 
@@ -58,7 +58,7 @@ namespace Jot.Tests
         }
     }
 
-    public class TestHashJwtTokenProvider : JwtTokenProvider
+    public class TestHashJwtTokenProvider : Jot
     {
         public TestHashJwtTokenProvider()
 
@@ -77,7 +77,7 @@ namespace Jot.Tests
         }
     }
 
-    public class TestGhostClaimTokenProvider : JwtTokenProvider
+    public class TestGhostClaimTokenProvider : Jot
     {
         public TestGhostClaimTokenProvider()
                         : base(30, HashAlgorithm.HS512, true)
@@ -91,7 +91,7 @@ namespace Jot.Tests
         }
     }
 
-    public class TestJtiValidationClaimTokenProvider : JwtTokenProvider
+    public class TestJtiValidationClaimTokenProvider : Jot
     {
         private readonly Guid _jti;
 
@@ -119,19 +119,19 @@ namespace Jot.Tests
 
             var token = provider.Create();
 
-            Assert.AreEqual(token.GetClaim<string>(JwtDefaultClaims.ISS), "test");
+            Assert.AreEqual(token.GetClaim<string>(JotDefaultClaims.ISS), "test");
         }
 
         [TestMethod]
         public void VerifySerializationEventsWork()
         {
-            var provider = new TestJwtTokenProvider();
+            var jot = new TestJwtTokenProvider();
 
-            var token = provider.Create();
+            var token = jot.Create();
 
-            var encodedToken = provider.Encode(token);
+            var encodedToken = jot.Encode(token);
 
-            var result = provider.Validate(encodedToken);
+            var result = jot.Validate(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.Passed);
         }
@@ -139,15 +139,15 @@ namespace Jot.Tests
         [TestMethod]
         public void SetNbfToFutureDate()
         {
-            var provider = new TestJwtTokenProvider();
+            var jot = new TestJwtTokenProvider();
 
-            var token = provider.Create();
+            var token = jot.Create();
 
-            token.SetClaim(JwtDefaultClaims.NBF, UnixDateServices.GetUnixTimestamp(1));
+            token.SetClaim(JotDefaultClaims.NBF, UnixDateServices.GetUnixTimestamp(1));
 
-            var encodedToken = provider.Encode(token);
+            var encodedToken = jot.Encode(token);
 
-            var result = provider.Validate(encodedToken);
+            var result = jot.Validate(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.NotBeforeFailed);
         }
@@ -155,20 +155,20 @@ namespace Jot.Tests
         [TestMethod]
         public void MakeSureValidationContainerWorks()
         {
-            var provider = new TestJwtTokenProvider();
+            var jot = new TestJwtTokenProvider();
 
-            var token = provider.Create();
+            var token = jot.Create();
 
             token.SetClaim("tst", "win");
 
-            var validationContainer = new JwtValidationContainer();
+            var validationContainer = new JotValidationContainer();
 
             validationContainer.CheckNfb = true;
             validationContainer.AddCustomCheck("tst", "tst");
 
-            var encodedToken = provider.Encode(token);
+            var encodedToken = jot.Encode(token);
 
-            var result = provider.Validate(encodedToken, validationContainer);
+            var result = jot.Validate(encodedToken, validationContainer);
 
             Assert.AreEqual(result, TokenValidationResult.CustomCheckFailed);
         }
@@ -176,15 +176,15 @@ namespace Jot.Tests
         [TestMethod]
         public void MakeSureOnTokenValidateWorks()
         {
-            var provider = new TestValidateJwtTokenProvider();
+            var jot = new TestValidateJwtTokenProvider();
 
-            var token = provider.Create();
+            var token = jot.Create();
 
             token.SetClaim("tst", "some other value");
 
-            var encodedToken = provider.Encode(token);
+            var encodedToken = jot.Encode(token);
 
-            var result = provider.Validate(encodedToken);
+            var result = jot.Validate(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.OnTokenValidateFailed);
         }
@@ -192,13 +192,13 @@ namespace Jot.Tests
         [TestMethod]
         public void MakeSureEncryptionHandlerWorks()
         {
-            var provider = new TestHashJwtTokenProvider();
+            var jot = new TestHashJwtTokenProvider();
 
-            var token = provider.Create();
+            var token = jot.Create();
 
-            var encodedToken = provider.Encode(token);
+            var encodedToken = jot.Encode(token);
 
-            var result = provider.Validate(encodedToken);
+            var result = jot.Validate(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.Passed);
         }
@@ -206,20 +206,20 @@ namespace Jot.Tests
         [TestMethod]
         public void MakeSureGhostClaimsAreOnlyAddedToSignatureAndNotClaims()
         {
-            var provider = new TestGhostClaimTokenProvider();
+            var jot = new TestGhostClaimTokenProvider();
 
-            var token = provider.Create();
+            var token = jot.Create();
 
             // must happen before reflection method, encode sets the encryption type
-            var encodedToken = provider.Encode(token);
+            var encodedToken = jot.Encode(token);
 
-            var method = typeof(JwtTokenProvider).GetMethod("_getEncrytedSignature", BindingFlags.Instance | BindingFlags.NonPublic);
+            var method = typeof(Jot).GetMethod("_getEncrytedSignature", BindingFlags.Instance | BindingFlags.NonPublic);
 
-            var encryptedSignature = method.Invoke(provider, new object[] { token, "sjdfhikjsjhdkfjjhsdlkfhsakd" });
+            var encryptedSignature = method.Invoke(jot, new object[] { token, "sjdfhikjsjhdkfjjhsdlkfhsakd" });
 
             var signature = encodedToken.Split('.')[2];
 
-            var decodedToken = provider.Decode(encodedToken);
+            var decodedToken = jot.Decode(encodedToken);
 
             Assert.IsTrue(string.Equals(encryptedSignature, signature) && !decodedToken.ClaimExists("cid"));
         }
@@ -228,15 +228,15 @@ namespace Jot.Tests
         public void MakeSureJtiValidationWorks()
         {
             var jti = Guid.NewGuid();
-            var provider = new TestJtiValidationClaimTokenProvider(jti);
+            var jot = new TestJtiValidationClaimTokenProvider(jti);
 
-            var token = provider.Create();
+            var token = jot.Create();
 
             token.SetClaim("jti", jti);
 
-            var encodedToken = provider.Encode(token);
+            var encodedToken = jot.Encode(token);
 
-            var result = provider.Validate(encodedToken);
+            var result = jot.Validate(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.Passed);
         }
@@ -245,15 +245,15 @@ namespace Jot.Tests
         public void MakeSureJtiValidationWorks_PurposlyFail()
         {
             var jti = Guid.NewGuid();
-            var provider = new TestJtiValidationClaimTokenProvider(jti);
+            var jot = new TestJtiValidationClaimTokenProvider(jti);
 
-            var token = provider.Create();
+            var token = jot.Create();
 
             token.SetClaim("jti", Guid.NewGuid());
 
-            var encodedToken = provider.Encode(token);
+            var encodedToken = jot.Encode(token);
 
-            var result = provider.Validate(encodedToken);
+            var result = jot.Validate(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.OnJtiValidateFailed);
         }

@@ -8,7 +8,7 @@
 
 namespace Jot
 {
-    public interface IJwtToken
+    public interface IJotToken
     {
         T GetClaim<T>(string claimKey);
 

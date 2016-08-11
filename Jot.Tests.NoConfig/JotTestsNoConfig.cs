@@ -11,9 +11,9 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void CreateClaimWithNoPayload()
         {
-            var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
+            var jot = new Jot(30, HashAlgorithm.HS512);
 
-            var token = provider.Create();
+            var token = jot.Create();
 
             Assert.IsNotNull(token);
         }
@@ -21,7 +21,7 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void CreateClaimWithPayload()
         {
-            var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
+            var jot = new Jot(30, HashAlgorithm.HS512);
 
             var payload = new Dictionary<string, object>
             {
@@ -36,7 +36,7 @@ namespace Jot.Tests.NoConfig
                     {"usr", ""}
             };
 
-            var token = provider.Create(payload);
+            var token = jot.Create(payload);
 
             Assert.IsNotNull(token);
         }
@@ -44,9 +44,9 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void CheckDefaultCreationValues()
         {
-            var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
+            var jot = new Jot(30, HashAlgorithm.HS512);
 
-            var token = provider.Create();
+            var token = jot.Create();
 
             var exp = token.GetClaim<double>("exp");
             var iat = token.GetClaim<double>("iat");
@@ -59,7 +59,7 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void CreateClaimWithPayloadAndMakeSureValuesAreSet()
         {
-            var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
+            var jot = new Jot(30, HashAlgorithm.HS512);
 
             var payload = new Dictionary<string, object>
             {
@@ -74,7 +74,7 @@ namespace Jot.Tests.NoConfig
                     {"usr", ""}
             };
 
-            var token = provider.Create(payload);
+            var token = jot.Create(payload);
 
             var rol = token.GetClaim<string>("rol");
             var jti = token.GetClaim<Guid>("jti");
@@ -86,16 +86,16 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void MakeSureClaimIsEncryptedCorrectly()
         {
-            var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
+            var jot = new Jot(30, HashAlgorithm.HS512);
 
-            provider.OnCreate += (jwt) =>
+            jot.OnCreate += (jwt) =>
             {
                 jwt.SetClaim("iss", "IssuedByMe!");
             };
 
-            var token = provider.Create();
+            var token = jot.Create();
 
-            var encodedToken = provider.Encode(token, "kjsdkfjgosdjfgoi");
+            var encodedToken = jot.Encode(token, "kjsdkfjgosdjfgoi");
 
             Assert.IsTrue(encodedToken.Split('.').Count() == 3);
         }

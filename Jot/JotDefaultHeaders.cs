@@ -8,7 +8,7 @@
 
 namespace Jot
 {
-    public static class JwtDefaultHeaders
+    public static class JotDefaultHeaders
     {
         /// <summary>
         /// Algorithm

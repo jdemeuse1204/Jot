@@ -15,17 +15,17 @@ using System.Web.Script.Serialization;
 
 namespace Jot
 {
-    public class JwtTokenProvider
+    public class Jot
     {
         #region Constructor
-        public JwtTokenProvider(int jwtTimeOutInMinutes, HashAlgorithm hashAlgorithm, bool useGhostClaims = false)
+        public Jot(int jwtTimeOutInMinutes, HashAlgorithm hashAlgorithm, bool useGhostClaims = false)
         {
             JwtTimeout = jwtTimeOutInMinutes;
             HashAlgorithm = hashAlgorithm;
             UseGhostClaims = useGhostClaims;
         }
 
-        public JwtTokenProvider()
+        public Jot()
         {
             var section = _getConfigurationSection();
 
@@ -51,13 +51,13 @@ namespace Jot
 
 
 
-        public delegate bool OnTokenValidateHandler(IJwtToken token);
+        public delegate bool OnTokenValidateHandler(IJotToken token);
 
         public event OnTokenValidateHandler OnTokenValidate;
 
 
 
-        public delegate void OnTokenCreateHandler(IJwtToken token);
+        public delegate void OnTokenCreateHandler(IJotToken token);
 
         public event OnTokenCreateHandler OnCreate;
 
@@ -122,7 +122,7 @@ namespace Jot
         #endregion
 
         #region Create
-        public IJwtToken Create(Dictionary<string, object> extraHeaders, Dictionary<string, object> claims)
+        public IJotToken Create(Dictionary<string, object> extraHeaders, Dictionary<string, object> claims)
         {
             var token = new JwtToken(JwtTimeout);
 
@@ -137,7 +137,7 @@ namespace Jot
             return token;
         }
 
-        public IJwtToken Create(Dictionary<string, object> claims)
+        public IJotToken Create(Dictionary<string, object> claims)
         {
             var token = new JwtToken(JwtTimeout);
 
@@ -149,7 +149,7 @@ namespace Jot
             return token;
         }
 
-        public IJwtToken Create()
+        public IJotToken Create()
         {
             var token = new JwtToken(JwtTimeout);
 
@@ -161,21 +161,21 @@ namespace Jot
         #endregion
 
         #region Configuration
-        private void _checkConfigurationIsValid(JwtAuthConfigurationSection section)
+        private void _checkConfigurationIsValid(JotAuthConfigurationSection section)
         {
-            if (section == null) throw new JwtTokenException("Please configure Jot on the configuration file if you use the parameterless constructor.");
+            if (section == null) throw new JotException("Please configure Jot on the configuration file if you use the parameterless constructor.");
 
            section.CheckConfigurationIsValid();
         }
 
-        private JwtAuthConfigurationSection _getConfigurationSection()
+        private JotAuthConfigurationSection _getConfigurationSection()
         {
-            return System.Configuration.ConfigurationManager.GetSection(JwtAuthConfigurationSection.SectionName) as JwtAuthConfigurationSection;
+            return System.Configuration.ConfigurationManager.GetSection(JotAuthConfigurationSection.SectionName) as JotAuthConfigurationSection;
         }
         #endregion
 
         #region Encode
-        public string Encode(IJwtToken token)
+        public string Encode(IJotToken token)
         {
             var jwt = token as JwtToken;
 
@@ -186,14 +186,14 @@ namespace Jot
             return Encode(token, section.GetEncryptionSecret());
         }
 
-        public string Encode(IJwtToken token, string secret)
+        public string Encode(IJotToken token, string secret)
         {
             var jwt = token as JwtToken;
 
             if (jwt == null) throw new Exception("Token is not formed correctly");
 
             // set algorithm in header of jwt
-            jwt.SetHeader(JwtDefaultHeaders.ALG, _getEncryptionType());
+            jwt.SetHeader(JotDefaultHeaders.ALG, _getEncryptionType());
 
             // get the headers
             var jwtHeaders = jwt.GetHeaders();
@@ -236,11 +236,11 @@ namespace Jot
         #region Other
         private Dictionary<string, object> _getClaimsWithGhostClaims(JwtToken jwt)
         {
-            if (OnGetGhostClaims == null) throw new JwtTokenException("Ghost claims are being used, but OnGetGhostClaims is null.");
+            if (OnGetGhostClaims == null) throw new JotException("Ghost claims are being used, but OnGetGhostClaims is null.");
 
             var ghostClaims = OnGetGhostClaims();
 
-            if (ghostClaims == null || ghostClaims.Count == 0) throw new JwtTokenException("Ghost claims cannot be null or blank.");
+            if (ghostClaims == null || ghostClaims.Count == 0) throw new JotException("Ghost claims cannot be null or blank.");
 
             var jwtClaims = jwt.GetClaims();
 
@@ -287,11 +287,11 @@ namespace Jot
 
         #region Decode
 
-        public IJwtToken Decode(string encodedToken)
+        public IJotToken Decode(string encodedToken)
         {
             var parts = encodedToken.Split('.');
 
-            if (parts.Count() != 3) throw new JwtTokenException("Token does not consist of three parts");
+            if (parts.Count() != 3) throw new JotException("Token does not consist of three parts");
 
             // parts
             var header = parts[0];
@@ -327,21 +327,21 @@ namespace Jot
 
         #region Refresh Token
 
-        public IJwtToken Refresh(string encodedToken)
+        public IJotToken Refresh(string encodedToken)
         {
             var token = Decode(encodedToken);
 
             return Refresh(token);
         }
 
-        public IJwtToken Refresh(IJwtToken token)
+        public IJotToken Refresh(IJotToken token)
         {
             var jwt = token as JwtToken;
 
             if (jwt == null) throw new Exception("Token is not formed correctly");
 
             // refresh the expiration date
-            jwt.SetClaim(JwtDefaultClaims.EXP, UnixDateServices.GetUnixTimestamp(JwtTimeout));
+            jwt.SetClaim(JotDefaultClaims.EXP, UnixDateServices.GetUnixTimestamp(JwtTimeout));
 
             return token;
         }
@@ -352,10 +352,10 @@ namespace Jot
 
         public TokenValidationResult Validate(string encodedToken)
         {
-            return Validate(encodedToken, new JwtValidationContainer());
+            return Validate(encodedToken, new JotValidationContainer());
         }
 
-        public TokenValidationResult Validate(string encodedToken, JwtValidationContainer validationContainer)
+        public TokenValidationResult Validate(string encodedToken, JotValidationContainer validationContainer)
         {
             var section = _getConfigurationSection();
 
@@ -364,10 +364,10 @@ namespace Jot
 
         public TokenValidationResult Validate(string encodedToken, string secret)
         {
-            return Validate(encodedToken, secret, new JwtValidationContainer());
+            return Validate(encodedToken, secret, new JotValidationContainer());
         }
 
-        public TokenValidationResult Validate(string encodedToken, string secret, JwtValidationContainer validationContainer)
+        public TokenValidationResult Validate(string encodedToken, string secret, JotValidationContainer validationContainer)
         {
             var token = Decode(encodedToken);
             var jwt = token as JwtToken;
@@ -382,9 +382,9 @@ namespace Jot
 
             if (!string.Equals(signatureFromToken, recreatedSignedSignature)) return TokenValidationResult.SignatureNotValid;
 
-            var jti = jwt.GetClaim<Guid>(JwtDefaultClaims.JTI);
-            var nbf = jwt.GetClaim<double>(JwtDefaultClaims.NBF);
-            var exp = jwt.GetClaim<double>(JwtDefaultClaims.EXP);
+            var jti = jwt.GetClaim<Guid>(JotDefaultClaims.JTI);
+            var nbf = jwt.GetClaim<double>(JotDefaultClaims.NBF);
+            var exp = jwt.GetClaim<double>(JotDefaultClaims.EXP);
 
             // check iat, cannot be 0
 
@@ -444,7 +444,7 @@ namespace Jot
 
         //https://stormpath.com/blog/jwt-the-right-way
         //https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32#section-4.1.4
-        public class JwtToken : IJwtToken
+        public class JwtToken : IJotToken
         {
             #region Properties And Fields
 
@@ -460,21 +460,21 @@ namespace Jot
             {
                 _claims = new Dictionary<string, object>
                 {
-                    {JwtDefaultClaims.IAT, UnixDateServices.GetUnixTimestamp()},
-                    {JwtDefaultClaims.EXP, UnixDateServices.GetUnixTimestamp(jwtTimeOut)},
-                    {JwtDefaultClaims.ROL, ""},
-                    {JwtDefaultClaims.JTI, Guid.NewGuid()},
-                    {JwtDefaultClaims.ISS, ""},
-                    {JwtDefaultClaims.AUD, ""},
-                    {JwtDefaultClaims.NBF, UnixDateServices.GetUnixTimestamp()},
-                    {JwtDefaultClaims.SUB, ""},
-                    {JwtDefaultClaims.USR, ""}
+                    {JotDefaultClaims.IAT, UnixDateServices.GetUnixTimestamp()},
+                    {JotDefaultClaims.EXP, UnixDateServices.GetUnixTimestamp(jwtTimeOut)},
+                    {JotDefaultClaims.ROL, ""},
+                    {JotDefaultClaims.JTI, Guid.NewGuid()},
+                    {JotDefaultClaims.ISS, ""},
+                    {JotDefaultClaims.AUD, ""},
+                    {JotDefaultClaims.NBF, UnixDateServices.GetUnixTimestamp()},
+                    {JotDefaultClaims.SUB, ""},
+                    {JotDefaultClaims.USR, ""}
                 };
 
                 _header = new Dictionary<string, object>
                 {
-                    {JwtDefaultHeaders.ALG, ""},
-                    {JwtDefaultHeaders.TYP, "JWT"}
+                    {JotDefaultHeaders.ALG, ""},
+                    {JotDefaultHeaders.TYP, "JWT"}
                 };
             }
 

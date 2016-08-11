@@ -11,9 +11,9 @@ using System.Collections.Generic;
 
 namespace Jot
 {
-    public class JwtValidationContainer : IEnumerable<KeyValuePair<string, object>>
+    public class JotValidationContainer : IEnumerable<KeyValuePair<string, object>>
     {
-        public JwtValidationContainer()
+        public JotValidationContainer()
         {
             CheckNfb = true;
             _customChecks = new Dictionary<string, object>();

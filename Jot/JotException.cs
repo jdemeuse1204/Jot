@@ -10,9 +10,9 @@ using System;
 
 namespace Jot
 {
-    public class JwtTokenException: Exception
+    public class JotException: Exception
     {
-        public JwtTokenException(string message) 
+        public JotException(string message) 
             : base(message)
         {
         }

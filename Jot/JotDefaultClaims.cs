@@ -8,7 +8,7 @@
 
 namespace Jot
 {
-    public static class JwtDefaultClaims
+    public static class JotDefaultClaims
     {
         /// <summary>
         /// Issued At

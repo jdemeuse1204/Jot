@@ -12,9 +12,9 @@ namespace Jot.Tests
         [TestMethod]
         public void CreateClaimWithNoPayload()
         {
-            var provider = new JwtTokenProvider();
+            var jot = new Jot();
 
-            var token = provider.Create();
+            var token = jot.Create();
 
             Assert.IsNotNull(token);
         }
@@ -22,7 +22,7 @@ namespace Jot.Tests
         [TestMethod]
         public void CreateClaimWithPayload()
         {
-            var provider = new JwtTokenProvider();
+            var jot = new Jot();
 
             var payload = new Dictionary<string, object>
             {
@@ -37,7 +37,7 @@ namespace Jot.Tests
                 {"usr", ""}
             };
 
-            var token = provider.Create(payload);
+            var token = jot.Create(payload);
 
             Assert.IsNotNull(token);
         }
@@ -45,9 +45,9 @@ namespace Jot.Tests
         [TestMethod]
         public void CheckDefaultCreationValues()
         {
-            var provider = new JwtTokenProvider();
+            var jot = new Jot();
 
-            var token = provider.Create();
+            var token = jot.Create();
 
             var exp = token.GetClaim<double>("exp");
             var iat = token.GetClaim<double>("iat");
@@ -60,7 +60,7 @@ namespace Jot.Tests
         [TestMethod]
         public void CreateClaimWithPayloadAndMakeSureValuesAreSet()
         {
-            var provider = new JwtTokenProvider();
+            var jot = new Jot();
 
             var payload = new Dictionary<string, object>
             {
@@ -75,7 +75,7 @@ namespace Jot.Tests
                 {"usr", ""}
             };
 
-            var token = provider.Create(payload);
+            var token = jot.Create(payload);
 
             var rol = token.GetClaim<string>("rol");
             var jti = token.GetClaim<Guid>("jti");
@@ -87,11 +87,11 @@ namespace Jot.Tests
         [TestMethod]
         public void MakeSureClaimIsEncryptedCorrectly()
         {
-            var provider = new JwtTokenProvider();
+            var jot = new Jot();
 
-            var token = provider.Create();
+            var token = jot.Create();
 
-            var jwt = provider.Encode(token);
+            var jwt = jot.Encode(token);
 
             Assert.IsTrue(jwt.Split('.').Count() == 3);
         }
@@ -99,7 +99,7 @@ namespace Jot.Tests
         [TestMethod]
         public void CheckNbf_AddTimeToSetTheNotBeforeToALaterDate()
         {
-            var provider = new JwtTokenProvider();
+            var jot = new Jot();
 
             var payload = new Dictionary<string, object>
             {
@@ -114,11 +114,11 @@ namespace Jot.Tests
                 {"usr", ""}
             };
 
-            var token = provider.Create(payload);
+            var token = jot.Create(payload);
 
-            var jwt = provider.Encode(token);
+            var jwt = jot.Encode(token);
 
-            var isValid = provider.Validate(jwt);
+            var isValid = jot.Validate(jwt);
 
             Assert.IsTrue(isValid == TokenValidationResult.NotBeforeFailed);
         }
@@ -126,7 +126,7 @@ namespace Jot.Tests
         [TestMethod]
         public void CheckNbf_MakeSureItWorksOnItsOwn()
         {
-            var provider = new JwtTokenProvider();
+            var jot = new Jot();
 
             var payload = new Dictionary<string, object>
             {
@@ -140,11 +140,11 @@ namespace Jot.Tests
                 {"usr", ""}
             };
 
-            var token = provider.Create(payload);
+            var token = jot.Create(payload);
 
-            var jwt = provider.Encode(token);
+            var jwt = jot.Encode(token);
 
-            var validationResult = provider.Validate(jwt);
+            var validationResult = jot.Validate(jwt);
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }

@@ -13,17 +13,17 @@ namespace Jot.Console
         {
 
             var userId = Guid.NewGuid();
-            var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
+            var jot = new Jot(30, HashAlgorithm.HS512);
 
-            provider.OnGetGhostClaims += () => new Dictionary<string, object> {{"cid", userId } };
+            jot.OnGetGhostClaims += () => new Dictionary<string, object> {{"cid", userId } };
 
-            var token = provider.Create();
+            var token = jot.Create();
 
-            var encoded = provider.Encode(token);
+            var encoded = jot.Encode(token);
 
-            var decoded = provider.Decode(encoded);
+            var decoded = jot.Decode(encoded);
 
-            if (provider.Validate(encoded) == TokenValidationResult.Passed)
+            if (jot.Validate(encoded) == TokenValidationResult.Passed)
             {
 
             }
