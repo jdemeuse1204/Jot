@@ -407,11 +407,12 @@ Settings
 + james.demeuse@gmail.com
 
 ## Credits
--Thank you to https://stormpath.com/blog/jwt-the-right-way
--Url Encoding https://tools.ietf.org/html/draft-ietf-jose-json-web-signature-08#appendix-C
--Jwt Claims https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32#section-4.1.4
--Jwt Formation https://jwt.io/
--Jwt Ghost Claims Idea http://security.stackexchange.com/questions/64350/compromised-json-web-token-jwt-bearer-token
+
++ Thank you to https://stormpath.com/blog/jwt-the-right-way
++ Url Encoding https://tools.ietf.org/html/draft-ietf-jose-json-web-signature-08#appendix-C
++ Jwt Claims https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32#section-4.1.4
++ Jwt Formation https://jwt.io/
++ Jwt Ghost Claims Idea http://security.stackexchange.com/questions/64350/compromised-json-web-token-jwt-bearer-token
 
 ## Copyright
 Copyright © 2016
