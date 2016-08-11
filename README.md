@@ -269,7 +269,13 @@ TokenValidationResult
 -CreatedTimeCheckFailed,
 -Passed
 
-1.  Default Verificaiton
+1.  Default Verificaiton<br/><br/>
+Claims Verified By Default:
+
++ nbf
++ exp
++ iat
++ jti (if OnJtiValidate handler has method)
 
 ```C#
 public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
@@ -294,16 +300,18 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
   var validationContainer = new JotValidationContainer();
   
   // here we are telling the Not Before (nbf) claim to be skipped
-  // default is set to true
-  validationContainer.CheckNfb = false;
+  // By default, the claim will be checked unless you
+  // manually skip it
+  validationContainer.SkipClaimVerification(JotDefaultClaims.NBF);
   
   // here we are telling the Creation Date (iat) claim to be skipped
-  // default is set to true
-  validationContainer.CheckIat = false;
+  // By default, the claim will be checked unless you
+  // manually skip it
+  validationContainer.SkipClaimVerification(JotDefaultClaims.IAT);
   
-  // here we are adding a custom check to the Issuer (iss) claim
+  // here we are adding a custom verificaiton to the Issuer (iss) claim
   // the claim must equal github.com
-  validationContainer.AddCustomCheck("iss", "github.com");
+  validationContainer.AddCustomClaimVerification("iss", "github.com");
   
   // When validate is called, the above validations will be run
   // note, you must pass the validationContainer into the validate function
