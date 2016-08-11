@@ -15,17 +15,17 @@ using System.Web.Script.Serialization;
 
 namespace Jot
 {
-    public class Jot
+    public class JotProvider
     {
         #region Constructor
-        public Jot(int jwtTimeOutInMinutes, HashAlgorithm hashAlgorithm, bool useGhostClaims = false)
+        public JotProvider(int jwtTimeOutInMinutes, HashAlgorithm hashAlgorithm, bool useGhostClaims = false)
         {
             JwtTimeout = jwtTimeOutInMinutes;
             HashAlgorithm = hashAlgorithm;
             UseGhostClaims = useGhostClaims;
         }
 
-        public Jot()
+        public JotProvider()
         {
             var section = _getConfigurationSection();
 
@@ -595,7 +595,7 @@ namespace Jot
         {
             public static double GetUnixTimestamp(double jwtAuthorizationTimeOutInMinutes)
             {
-                var millisecondsTimeOut = ((jwtAuthorizationTimeOutInMinutes * 60)*1000);
+                var millisecondsTimeOut = jwtAuthorizationTimeOutInMinutes * 60;
 
                 return Math.Round(GetUnixTimestamp() + millisecondsTimeOut);
             }

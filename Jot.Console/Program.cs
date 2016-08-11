@@ -13,7 +13,7 @@ namespace Jot.Console
         {
 
             var userId = Guid.NewGuid();
-            var jot = new Jot(30, HashAlgorithm.HS512);
+            var jot = new JotProvider(30, HashAlgorithm.HS512);
 
             jot.OnGetGhostClaims += () => new Dictionary<string, object> {{"cid", userId } };
 

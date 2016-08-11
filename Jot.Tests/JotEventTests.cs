@@ -10,7 +10,7 @@ using Newtonsoft.Json;
 namespace Jot.Tests
 {
     #region Token Providers
-    public class TestJwtTokenProvider : Jot
+    public class TestJwtTokenProvider : JotProvider
     {
         public TestJwtTokenProvider()
         {
@@ -43,7 +43,7 @@ namespace Jot.Tests
         }
     }
 
-    public class TestValidateJwtTokenProvider : Jot
+    public class TestValidateJwtTokenProvider : JotProvider
     {
         public TestValidateJwtTokenProvider()
         {
@@ -58,7 +58,7 @@ namespace Jot.Tests
         }
     }
 
-    public class TestHashJwtTokenProvider : Jot
+    public class TestHashJwtTokenProvider : JotProvider
     {
         public TestHashJwtTokenProvider()
 
@@ -77,7 +77,7 @@ namespace Jot.Tests
         }
     }
 
-    public class TestGhostClaimTokenProvider : Jot
+    public class TestGhostClaimTokenProvider : JotProvider
     {
         public TestGhostClaimTokenProvider()
                         : base(30, HashAlgorithm.HS512, true)
@@ -91,7 +91,7 @@ namespace Jot.Tests
         }
     }
 
-    public class TestJtiValidationClaimTokenProvider : Jot
+    public class TestJtiValidationClaimTokenProvider : JotProvider
     {
         private readonly Guid _jti;
 
@@ -213,7 +213,7 @@ namespace Jot.Tests
             // must happen before reflection method, encode sets the encryption type
             var encodedToken = jot.Encode(token);
 
-            var method = typeof(Jot).GetMethod("_getEncrytedSignature", BindingFlags.Instance | BindingFlags.NonPublic);
+            var method = typeof(JotProvider).GetMethod("_getEncrytedSignature", BindingFlags.Instance | BindingFlags.NonPublic);
 
             var encryptedSignature = method.Invoke(jot, new object[] { token, "sjdfhikjsjhdkfjjhsdlkfhsakd" });
 

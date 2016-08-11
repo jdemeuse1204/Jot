@@ -11,7 +11,7 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void CreateClaimWithNoPayload()
         {
-            var jot = new Jot(30, HashAlgorithm.HS512);
+            var jot = new JotProvider(30, HashAlgorithm.HS512);
 
             var token = jot.Create();
 
@@ -21,7 +21,7 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void CreateClaimWithPayload()
         {
-            var jot = new Jot(30, HashAlgorithm.HS512);
+            var jot = new JotProvider(30, HashAlgorithm.HS512);
 
             var payload = new Dictionary<string, object>
             {
@@ -44,7 +44,7 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void CheckDefaultCreationValues()
         {
-            var jot = new Jot(30, HashAlgorithm.HS512);
+            var jot = new JotProvider(30, HashAlgorithm.HS512);
 
             var token = jot.Create();
 
@@ -59,7 +59,7 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void CreateClaimWithPayloadAndMakeSureValuesAreSet()
         {
-            var jot = new Jot(30, HashAlgorithm.HS512);
+            var jot = new JotProvider(30, HashAlgorithm.HS512);
 
             var payload = new Dictionary<string, object>
             {
@@ -86,7 +86,7 @@ namespace Jot.Tests.NoConfig
         [TestMethod]
         public void MakeSureClaimIsEncryptedCorrectly()
         {
-            var jot = new Jot(30, HashAlgorithm.HS512);
+            var jot = new JotProvider(30, HashAlgorithm.HS512);
 
             jot.OnCreate += (jwt) =>
             {

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Jot.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -12,7 +13,7 @@ namespace Jot.Tests
         [TestMethod]
         public void CreateClaimWithNoPayload()
         {
-            var jot = new Jot();
+            var jot = new JotProvider();
 
             var token = jot.Create();
 
@@ -22,7 +23,7 @@ namespace Jot.Tests
         [TestMethod]
         public void CreateClaimWithPayload()
         {
-            var jot = new Jot();
+            var jot = new JotProvider();
 
             var payload = new Dictionary<string, object>
             {
@@ -45,7 +46,7 @@ namespace Jot.Tests
         [TestMethod]
         public void CheckDefaultCreationValues()
         {
-            var jot = new Jot();
+            var jot = new JotProvider();
 
             var token = jot.Create();
 
@@ -60,7 +61,7 @@ namespace Jot.Tests
         [TestMethod]
         public void CreateClaimWithPayloadAndMakeSureValuesAreSet()
         {
-            var jot = new Jot();
+            var jot = new JotProvider();
 
             var payload = new Dictionary<string, object>
             {
@@ -87,7 +88,7 @@ namespace Jot.Tests
         [TestMethod]
         public void MakeSureClaimIsEncryptedCorrectly()
         {
-            var jot = new Jot();
+            var jot = new JotProvider();
 
             var token = jot.Create();
 
@@ -99,7 +100,7 @@ namespace Jot.Tests
         [TestMethod]
         public void CheckNbf_AddTimeToSetTheNotBeforeToALaterDate()
         {
-            var jot = new Jot();
+            var jot = new JotProvider();
 
             var payload = new Dictionary<string, object>
             {
@@ -126,7 +127,7 @@ namespace Jot.Tests
         [TestMethod]
         public void CheckNbf_MakeSureItWorksOnItsOwn()
         {
-            var jot = new Jot();
+            var jot = new JotProvider();
 
             var payload = new Dictionary<string, object>
             {
@@ -147,6 +148,22 @@ namespace Jot.Tests
             var validationResult = jot.Validate(jwt);
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed);
+        }
+
+        [TestMethod]
+        public void MakeSureExpClaimIsWorking()
+        {
+            var jot = new JotProvider();
+
+            var token = jot.Create();
+
+            var jwt = jot.Encode(token);
+
+            Thread.Sleep(61000);
+
+            var validationResult = jot.Validate(jwt);
+
+            Assert.IsTrue(validationResult == TokenValidationResult.TokenExpired);
         }
     }
 }

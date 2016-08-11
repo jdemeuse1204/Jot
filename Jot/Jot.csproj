@@ -48,7 +48,7 @@
     <Compile Include="JotDefaultClaims.cs" />
     <Compile Include="JotDefaultHeaders.cs" />
     <Compile Include="JotException.cs" />
-    <Compile Include="Jot.cs" />
+    <Compile Include="JotProvider.cs" />
     <Compile Include="JotValidationContainer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TokenValidationResult.cs" />
