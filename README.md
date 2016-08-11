@@ -18,15 +18,15 @@ public string GetNewToken()
   // the constructor values do not need to be used if you are using the app/web config
   // in this example we are using the configuration file found 
   // in the Jot App/Web Configuration section
-  var provider = new JwtTokenProvider();
+  var jot = new Jot();
   
   // iat, exp, and nbf are always set by default
   // unless you wish to set them to different values
   // see the Adding/Setting claims section
-  var token = provider.Create();
+  var token = jot.Create();
 
   // here is your encoded token.  Use as you please
-  return provider.Encode(token);
+  return jot.Encode(token);
 }
 ```
 
@@ -39,15 +39,15 @@ public string GetNewToken()
 
   // the constructor values do not need to be used if you are using the app/web config
   // in this example we are using the constructor 
-  var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
+  var jot = new Jot(30, HashAlgorithm.HS512);
   
   // iat, exp, and nbf are always set by default
   // unless you wish to set them to different values
   // see the Adding/Setting claims section
-  var token = provider.Create();
+  var token = jot.Create();
 
   // here is your encoded token.  Use as you please
-  return provider.Encode(token, secret);
+  return jot.Encode(token, secret);
 }
 ```
 
@@ -70,19 +70,19 @@ public string AddingANewClaim()
 {
   // please note, assume this example uses the config
   // for all configuration options
-  var provider = new JwtTokenProvider();
+  var jot = new Jot();
   
   // iat, exp, and nbf are always set by default
   // unless you wish to set them to different values
   // see the Adding/Setting claims section
-  var token = provider.Create();
+  var token = jot.Create();
   
   // there is no "add" claim, if the key does
   // not exist it will be added
   token.SetClaim("claimKey","claimValue");
 
   // here is your encoded token.  Use as you please
-  return provider.Encode(token);
+  return jot.Encode(token);
 }
 ```
 
@@ -93,20 +93,20 @@ public string AddClaimUsingOnCreateHandler()
 {
   // please note, assume this example uses the config
   // for all configuration options
-  var provider = new JwtTokenProvider();
+  var jot = new Jot();
   
   // Override the OnCreate method and return the claims
   // you wish to set.  The idea way to do this is
-  // inherit from JwtTokenProvider and set this method
+  // inherit from Jot and set this method
   // on the constructor
-  provider.OnCreate += (tkn) =>
+  jot.OnCreate += (tkn) =>
   {
     tkn.SetClaim("claimKey", "claimValue");
   };
   
-  var token = provider.Create();
+  var token = jot.Create();
 
-  return provider.Encode(token);
+  return jot.Encode(token);
 }
 ```
 
@@ -117,7 +117,7 @@ public string AddClaimUsingCreateMethodParameters()
 {
   // please note, assume this example uses the config
   // for all configuration options
-  var provider = new JwtTokenProvider();
+  var jot = new Jot();
   
   // Create your payload.  If the claim exists, the value will be set,
   // if the claim does not exist the claim will be added and value will be set
@@ -134,9 +134,9 @@ public string AddClaimUsingCreateMethodParameters()
       {"usr", ""}
   };
   
-  var token = provider.Create(payload);
+  var token = jot.Create(payload);
 
-  return provider.Encode(token);
+  return jot.Encode(token);
 }
 ```
 
@@ -157,11 +157,11 @@ public string UsingTheOhHashHandler()
 {
   // please note, assume this example uses the config
   // for all configuration options
-  var provider = new JwtTokenProvider();
+  var jot = new Jot();
   
   // simply add a method to the OnHash handler.  This will be
   // used instead of the default methods
-  provider.OnHash += (encrypt, secret) =>
+  jot.OnHash += (encrypt, secret) =>
   {
       var key = Encoding.UTF8.GetBytes(secret);
 
@@ -171,9 +171,9 @@ public string UsingTheOhHashHandler()
       }
   };
   
-  var token = provider.Create();
+  var token = jot.Create();
 
-  return provider.Encode(token);
+  return jot.Encode(token);
 }
 ```
 
@@ -187,17 +187,17 @@ Change the **type** in the Encryption node to change encryption.  See defaults a
   </Jot>
 ```
 
-3.  Using the providers constructor
+3.  Using the jots constructor
 
 ```C#
 public string UseTheProviderConstructor()
 {
-  // Set the hash algorithm you wish to use in the providers constructor
-  var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
+  // Set the hash algorithm you wish to use in the jots constructor
+  var jot = new Jot(30, HashAlgorithm.HS512);
   
-  var token = provider.Create();
+  var token = jot.Create();
 
-  return provider.Encode(token);
+  return jot.Encode(token);
 }
 ```
 
@@ -211,11 +211,11 @@ public string UseSecretInEncodeMethodAsParameter()
 {
   var secret = "MySuperSecretSecret";
 
-  var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
+  var jot = new Jot(30, HashAlgorithm.HS512);
   
-  var token = provider.Create();
+  var token = jot.Create();
 
-  return provider.Encode(token, secret);
+  return jot.Encode(token, secret);
 }
 ```
 
@@ -224,11 +224,11 @@ public string UseSecretInEncodeMethodAsParameter()
 ```C#
 public string UseSecretInEncodeMethodAsParameter()
 {
-  var provider = new JwtTokenProvider(30, HashAlgorithm.HS512);
+  var jot = new Jot(30, HashAlgorithm.HS512);
   
-  var token = provider.Create();
+  var token = jot.Create();
 
-  return provider.Encode(token);
+  return jot.Encode(token);
 }
 ```
 
@@ -259,23 +259,23 @@ TokenValidationResult
 public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 {
   // lets assume the encodedTokenFromWebPage is the token being passed in
-  var provider = new JwtTokenProvider();
+  var jot = new Jot();
   
   // please see above for the results from Validate
-  return provider.Validate(encodedTokenFromWebPage);
+  return jot.Validate(encodedTokenFromWebPage);
 }
 ```
 
-2.  Using the JwtValidationContainer
-The JwtValidationContainer lets the user customize the tokens verification
+2.  Using the JotValidationContainer
+The JotValidationContainer lets the user customize the tokens verification
 
 ```C#
 public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 {
   // lets assume the encodedTokenFromWebPage is the token being passed in
-  var provider = new JwtTokenProvider();
+  var jot = new Jot();
 
-  var validationContainer = new JwtValidationContainer();
+  var validationContainer = new JotValidationContainer();
   
   // here we are telling the Not Before (nbf) claim to be skipped
   validationContainer.CheckNfb = false;
@@ -286,7 +286,7 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
   
   // When validate is called, the above validations will be run
   // note, you must pass the validationContainer into the validate function
-  return provider.Validate(encodedTokenFromWebPage, validationContainer);
+  return jot.Validate(encodedTokenFromWebPage, validationContainer);
 }
 ```
 
@@ -296,13 +296,13 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 {
   // lets assume the encodedTokenFromWebPage is the token being passed in
-  var provider = new JwtTokenProvider();
+  var jot = new Jot();
   
   var secret = "MySuperSecretSecret";
 
   // if you do not use the config file, you can pass in your secret to the
   // validate method
-  return provider.Validate(encodedTokenFromWebPage, secret);
+  return jot.Validate(encodedTokenFromWebPage, secret);
 }
 ```
 
@@ -313,13 +313,13 @@ Claims and Headers are serialized as a JSON string before they are Base64Url enc
 public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 {
   // lets assume the encodedTokenFromWebPage is the token being passed in
-  var provider = new JwtTokenProvider();
+  var jot = new Jot();
   
   // in this example, Newtonsoft's JSON serializer is used to serialize
-  provider.OnSerialize += serialize => JsonConvert.SerializeObject(serialize);
+  jot.OnSerialize += serialize => JsonConvert.SerializeObject(serialize);
 
   // in this example, Newtonsoft's JSON converter is used to deserialize
-  provider.OnDeserialize += jsonString => JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonString);
+  jot.OnDeserialize += jsonString => JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonString);
   
   // when the token is encoded/decoded/validated the above methods will
   // be used for serializing and deserializing the token
@@ -353,11 +353,11 @@ Settings
 
 -Token:
   * timeOut - this is the time out of the token in minutes
-  * anonymousAlgorithmInHeader - in the header of a JWT the typ claim exposes the hash method.  If you do not wish to share the hash method, you may make the typ header say "Anonymous."  The has method comes from the JwtTokenProvider on the server, the typ header is not used.  It is set for conventions sake.
+  * anonymousAlgorithmInHeader - in the header of a JWT the typ claim exposes the hash method.  If you do not wish to share the hash method, you may make the typ header say "Anonymous."  The has method comes from the Jot on the server, the typ header is not used.  It is set for conventions sake.
 
 -Encryption
   * type - This is the hash type that will be used for the signature.  Options are HS256, HS384, and HS512.
-  * useGhostClaims - tells your provider whether or not to use **Ghost Claims**
+  * useGhostClaims - tells your **Jot** whether or not to use **Ghost Claims**
   * secret - secret/key to hash the signature of a token
 
 1.  App.config
@@ -367,7 +367,7 @@ Settings
 <configuration>
   <!-- MUST GO BEFORE STARTUP SECTION -->
   <configSections>
-    <section name="Jot" type="Jot.JwtAuthConfigurationSection, Jot" />
+    <section name="Jot" type="Jot.JotAuthConfigurationSection, Jot" />
   </configSections>
   <startup>
     <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.5.2" />
@@ -387,7 +387,7 @@ Settings
 <configuration>
   <!-- PUT AT THE TOP OF THE WEB.CONFIG -->
   <configSections>
-    <section name="Jot" type="Jot.JwtAuthConfigurationSection, Jot" />
+    <section name="Jot" type="Jot.JotAuthConfigurationSection, Jot" />
   </configSections>
 
   <!--  other sections  -->
@@ -407,11 +407,12 @@ Settings
 + james.demeuse@gmail.com
 
 ## Credits
--Thank you to https://stormpath.com/blog/jwt-the-right-way
--Url Encoding https://tools.ietf.org/html/draft-ietf-jose-json-web-signature-08#appendix-C
--Jwt Claims https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32#section-4.1.4
--Jwt Formation https://jwt.io/
--Jwt Ghost Claims Idea http://security.stackexchange.com/questions/64350/compromised-json-web-token-jwt-bearer-token
+
++ Thank you to https://stormpath.com/blog/jwt-the-right-way
++ Url Encoding https://tools.ietf.org/html/draft-ietf-jose-json-web-signature-08#appendix-C
++ Jwt Claims https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32#section-4.1.4
++ Jwt Formation https://jwt.io/
++ Jwt Ghost Claims Idea http://security.stackexchange.com/questions/64350/compromised-json-web-token-jwt-bearer-token
 
 ## Copyright
 Copyright © 2016
