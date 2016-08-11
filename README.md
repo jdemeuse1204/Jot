@@ -7,6 +7,20 @@
 ## Getting Started
 Jot is very easy to get started, use nuget to add the reference to your project
 
+##Customization
+**Jot** is highly customizable, allowing end users to configure just about anything.  Developers can configure everything from how the token is verified, to custom hash algorithms, to validating custom claims.  Out of the box, it will produce a standard JWT according to specifications referenced below.  Here is a list of everything that can be customized:
+
+1.  Validating Claim Id's (Jti)
+2.  Ghost Claims
+3.  Token Validation
+4.  Serialization
+5.  Deserialzation
+6.  Hashing the signature
+7.  Custom Claims
+8.  Validating Custom Claims
+9.  Token TimeOut
+10.  Custom Headers
+
 #Token Creation
 
 1.  Creating a JWT using the app/web config
