@@ -14,9 +14,17 @@ namespace Jot.Tests
     {
         public TestJwtTokenProvider()
         {
-            OnCreate += OnOnCreate;
+            //OnCreate += OnOnCreate;
             OnDeserialize += OnOnDeserialize;
             OnSerialize += OnOnSerialize;
+
+            OnCreate += (tkn) =>
+            {
+                tkn.SetClaim("tst", "SomeNewClaim");
+            };
+
+            OnDeserialize += jsonString => JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonString);
+            OnSerialize += serialize => JsonConvert.SerializeObject(serialize);
         }
 
         public string OnOnSerialize(object toSerialize)
