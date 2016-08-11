@@ -18,7 +18,7 @@ public string GetNewToken()
   // the constructor values do not need to be used if you are using the app/web config
   // in this example we are using the configuration file found 
   // in the Jot App/Web Configuration section
-  var jot = new Jot();
+  var jot = new JotProvider();
   
   // iat, exp, and nbf are always set by default
   // unless you wish to set them to different values
@@ -39,7 +39,7 @@ public string GetNewToken()
 
   // the constructor values do not need to be used if you are using the app/web config
   // in this example we are using the constructor 
-  var jot = new Jot(30, HashAlgorithm.HS512);
+  var jot = new JotProvider(30, HashAlgorithm.HS512);
   
   // iat, exp, and nbf are always set by default
   // unless you wish to set them to different values
@@ -70,7 +70,7 @@ public string AddingANewClaim()
 {
   // please note, assume this example uses the config
   // for all configuration options
-  var jot = new Jot();
+  var jot = new JotProvider();
   
   // iat, exp, and nbf are always set by default
   // unless you wish to set them to different values
@@ -93,7 +93,7 @@ public string AddClaimUsingOnCreateHandler()
 {
   // please note, assume this example uses the config
   // for all configuration options
-  var jot = new Jot();
+  var jot = new JotProvider();
   
   // Override the OnCreate method and return the claims
   // you wish to set.  The idea way to do this is
@@ -117,7 +117,7 @@ public string AddClaimUsingCreateMethodParameters()
 {
   // please note, assume this example uses the config
   // for all configuration options
-  var jot = new Jot();
+  var jot = new JotProvider();
   
   // Create your payload.  If the claim exists, the value will be set,
   // if the claim does not exist the claim will be added and value will be set
@@ -157,7 +157,7 @@ public string UsingTheOhHashHandler()
 {
   // please note, assume this example uses the config
   // for all configuration options
-  var jot = new Jot();
+  var jot = new JotProvider();
   
   // simply add a method to the OnHash handler.  This will be
   // used instead of the default methods
@@ -193,7 +193,7 @@ Change the **type** in the Encryption node to change encryption.  See defaults a
 public string UseTheProviderConstructor()
 {
   // Set the hash algorithm you wish to use in the jots constructor
-  var jot = new Jot(30, HashAlgorithm.HS512);
+  var jot = new JotProvider(30, HashAlgorithm.HS512);
   
   var token = jot.Create();
 
@@ -211,7 +211,7 @@ public string UseSecretInEncodeMethodAsParameter()
 {
   var secret = "MySuperSecretSecret";
 
-  var jot = new Jot(30, HashAlgorithm.HS512);
+  var jot = new JotProvider(30, HashAlgorithm.HS512);
   
   var token = jot.Create();
 
@@ -224,7 +224,7 @@ public string UseSecretInEncodeMethodAsParameter()
 ```C#
 public string UseSecretInEncodeMethodAsParameter()
 {
-  var jot = new Jot(30, HashAlgorithm.HS512);
+  var jot = new JotProvider(30, HashAlgorithm.HS512);
   
   var token = jot.Create();
 
@@ -259,7 +259,7 @@ TokenValidationResult
 public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 {
   // lets assume the encodedTokenFromWebPage is the token being passed in
-  var jot = new Jot();
+  var jot = new JotProvider();
   
   // please see above for the results from Validate
   return jot.Validate(encodedTokenFromWebPage);
@@ -273,7 +273,7 @@ The JotValidationContainer lets the user customize the tokens verification
 public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 {
   // lets assume the encodedTokenFromWebPage is the token being passed in
-  var jot = new Jot();
+  var jot = new JotProvider();
 
   var validationContainer = new JotValidationContainer();
   
@@ -296,7 +296,7 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 {
   // lets assume the encodedTokenFromWebPage is the token being passed in
-  var jot = new Jot();
+  var jot = new JotProvider();
   
   var secret = "MySuperSecretSecret";
 
@@ -313,7 +313,7 @@ Claims and Headers are serialized as a JSON string before they are Base64Url enc
 public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 {
   // lets assume the encodedTokenFromWebPage is the token being passed in
-  var jot = new Jot();
+  var jot = new JotProvider();
   
   // in this example, Newtonsoft's JSON serializer is used to serialize
   jot.OnSerialize += serialize => JsonConvert.SerializeObject(serialize);
