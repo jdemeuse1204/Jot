@@ -361,20 +361,59 @@ base64UrlEncode(claims),  secret)).
 
 **Ghost Claims** are added to the claims before they are Base64Url encoded and become part of the signature.  **Ghost Claims** are not part of the normal claims segment, but only exist in the signature.  The server knows what the **Ghost Claims** are, but the Token does not know what they are.  This makes the token a lot harder to decrypt, because only your server knows what they **Ghost Claims** are.  Think of **Ghost Claims** like a second secret/key to your Token.  When the Token is validated, the **Ghost Claims** are factored into the signature, and must match the Token being validated.
 
-Pseudo Code - How it works
-```
+##Adding Ghost Claims
 
-  claims = Our Claims We Set
-  claimPlusGhostClaims = (claims + Ghost Claims)
-  headers = Headers We Set
+```C#
+public string AddGhostClaims()
+{
+  var secret = "MySuperSecretSecret";
+
+  var jot = new JotProvider(30, HashAlgorithm.HS512, true);
   
-  claimsSegment = Base64Url encoded claims
-  claimsPlusGhostClaimsSegment = Base64Url encoded claimPlusGhostClaims
-  headerSegment = Base64Url encoded headers
-  signature = Hash of headers + . + claimsPlusGhostClaimsSegment
+  var token = jot.Create();
+  
+  token.SetGhostClaim("cid", "test");
 
-  token = headerSegment + . + claimsSegment + . + signature
+  return jot.Encode(token, secret);
+}
 ```
+
+How it works example
+```JSON
+//header
+{
+    "alg": "HS256", 
+    "typ": "JWT"
+}
+ 
+//claims
+{
+    "sub": "james.demeuse@gmail.com",
+    "name": "James DeMeuse",
+    "role": "user"
+}
+
+// ghost claims
+{
+    "cid": "SomeUniqueId"
+}
+```
+
+```JavaScript
+// we add the ghost claims to the claims, and get claims plus ghost claims
+// assume a function was run to do this
+var claimsPlusGhostClaims = base64URLencode(myclaimsPlusGhostClaims);
+var headers = base64URLencode(myHeaders);
+var claims = base64URLencode(myClaims);
+var payload = header + "." + claims;
+var signaturePayload = header + "." + claimsPlusGhostClaims;
+ 
+var signature = base64URLencode(HMACSHA256(signaturePayload, secret));
+ 
+var encodedJWT = payload + "." + signature;
+```
+
+####NOTE: When Decoding the ghost claims, they are added back into the claims object and we check for a signature match.  The server should only know what the ghost claims are
 
 # Web/App config setup
 
