@@ -7,6 +7,20 @@
 ## Getting Started
 Jot is very easy to get started, use nuget to add the reference to your project
 
+##Customization
+**Jot** is highly customizable, allowing end users to configure just about anything.  Developers can configure everything from how the token is verified, to custom hash algorithms, to validating custom claims.  Out of the box, it will produce a standard JWT according to specifications referenced below.  Here is a list of everything that can be customized:
+
+1.  Validating Claim Id's (Jti)
+2.  Ghost Claims
+3.  Token Validation
+4.  Serialization
+5.  Deserialzation
+6.  Hashing the signature
+7.  Custom Claims
+8.  Validating Custom Claims
+9.  Token TimeOut
+10.  Custom Headers
+
 #Token Creation
 
 1.  Creating a JWT using the app/web config
@@ -255,7 +269,13 @@ TokenValidationResult
 -CreatedTimeCheckFailed,
 -Passed
 
-1.  Default Verificaiton
+1.  Default Verificaiton<br/><br/>
+Claims Verified By Default:
+
++ nbf
++ exp
++ iat
++ jti (if OnJtiValidate handler has method)
 
 ```C#
 public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
@@ -280,16 +300,18 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
   var validationContainer = new JotValidationContainer();
   
   // here we are telling the Not Before (nbf) claim to be skipped
-  // default is set to true
-  validationContainer.CheckNfb = false;
+  // By default, the claim will be checked unless you
+  // manually skip it
+  validationContainer.SkipClaimVerification(JotDefaultClaims.NBF);
   
   // here we are telling the Creation Date (iat) claim to be skipped
-  // default is set to true
-  validationContainer.CheckIat = false;
+  // By default, the claim will be checked unless you
+  // manually skip it
+  validationContainer.SkipClaimVerification(JotDefaultClaims.IAT);
   
-  // here we are adding a custom check to the Issuer (iss) claim
+  // here we are adding a custom verificaiton to the Issuer (iss) claim
   // the claim must equal github.com
-  validationContainer.AddCustomCheck("iss", "github.com");
+  validationContainer.AddCustomClaimVerification("iss", "github.com");
   
   // When validate is called, the above validations will be run
   // note, you must pass the validationContainer into the validate function
@@ -339,20 +361,69 @@ base64UrlEncode(claims),  secret)).
 
 **Ghost Claims** are added to the claims before they are Base64Url encoded and become part of the signature.  **Ghost Claims** are not part of the normal claims segment, but only exist in the signature.  The server knows what the **Ghost Claims** are, but the Token does not know what they are.  This makes the token a lot harder to decrypt, because only your server knows what they **Ghost Claims** are.  Think of **Ghost Claims** like a second secret/key to your Token.  When the Token is validated, the **Ghost Claims** are factored into the signature, and must match the Token being validated.
 
-Pseudo Code - How it works
-```
+##Adding Ghost Claims
+The best way to use **Ghost Claims** is to inherit from JotProvider and add an handler to OnGetGhostClaims
+```C#
+public class GhostClaimTokenProvider : JotProvider
+{
+    public GhostClaimTokenProvider()
+    {
+        OnGetGhostClaims += OnOnGetGhostClaims;
+    }
 
-  claims = Our Claims We Set
-  claimPlusGhostClaims = (claims + Ghost Claims)
-  headers = Headers We Set
+    private Dictionary<string, object> OnOnGetGhostClaims()
+    {
+        return new Dictionary<string, object> { { "cid", "test" } };
+    }
+}
+
+// After the handler is added, just go about your business as normal
+public string GetNewToken()
+{
+  var jot = new GhostClaimTokenProvider();
   
-  claimsSegment = Base64Url encoded claims
-  claimsPlusGhostClaimsSegment = Base64Url encoded claimPlusGhostClaims
-  headerSegment = Base64Url encoded headers
-  signature = Hash of headers + . + claimsPlusGhostClaimsSegment
+  var token = jot.Create();
 
-  token = headerSegment + . + claimsSegment + . + signature
+  return jot.Encode(token);
+}
 ```
+
+How it works example
+```JSON
+//header
+{
+    "alg": "HS256", 
+    "typ": "JWT"
+}
+ 
+//claims
+{
+    "sub": "james.demeuse@gmail.com",
+    "name": "James DeMeuse",
+    "role": "user"
+}
+
+// ghost claims
+{
+    "cid": "SomeUniqueId"
+}
+```
+
+```JavaScript
+// we add the ghost claims to the claims, and get claims plus ghost claims
+// assume a function was run to do this
+var claimsPlusGhostClaims = base64URLencode(myclaimsPlusGhostClaims);
+var headers = base64URLencode(myHeaders);
+var claims = base64URLencode(myClaims);
+var payload = header + "." + claims;
+var signaturePayload = header + "." + claimsPlusGhostClaims;
+ 
+var signature = base64URLencode(HMACSHA256(signaturePayload, secret));
+ 
+var encodedJWT = payload + "." + signature;
+```
+
+####NOTE: When Decoding the ghost claims, they are added back into the claims object and we check for a signature match.  The server should only know what the ghost claims are
 
 # Web/App config setup
 
