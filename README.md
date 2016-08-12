@@ -362,19 +362,29 @@ base64UrlEncode(claims),  secret)).
 **Ghost Claims** are added to the claims before they are Base64Url encoded and become part of the signature.  **Ghost Claims** are not part of the normal claims segment, but only exist in the signature.  The server knows what the **Ghost Claims** are, but the Token does not know what they are.  This makes the token a lot harder to decrypt, because only your server knows what they **Ghost Claims** are.  Think of **Ghost Claims** like a second secret/key to your Token.  When the Token is validated, the **Ghost Claims** are factored into the signature, and must match the Token being validated.
 
 ##Adding Ghost Claims
-
+The best way to use **Ghost Claims** is to inherit from JotProvider and add an handler to OnGetGhostClaims
 ```C#
-public string AddGhostClaims()
+public class GhostClaimTokenProvider : JotProvider
 {
-  var secret = "MySuperSecretSecret";
+    public GhostClaimTokenProvider()
+    {
+        OnGetGhostClaims += OnOnGetGhostClaims;
+    }
 
-  var jot = new JotProvider(30, HashAlgorithm.HS512, true);
+    private Dictionary<string, object> OnOnGetGhostClaims()
+    {
+        return new Dictionary<string, object> { { "cid", "test" } };
+    }
+}
+
+// After the handler is added, just go about your business as normal
+public string GetNewToken()
+{
+  var jot = new GhostClaimTokenProvider();
   
   var token = jot.Create();
-  
-  token.SetGhostClaim("cid", "test");
 
-  return jot.Encode(token, secret);
+  return jot.Encode(token);
 }
 ```
 
