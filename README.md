@@ -28,7 +28,7 @@ PM> Install-Package Jot.Jwt.Token.Authorization
 
 #Token Creation
 
-1.  Creating a JWT using the app/web config
+### Creating a JWT using the app/web config
 Please see the config section on how to configure your project to use the config settings.
 
 ```C#
@@ -49,7 +49,7 @@ public string GetNewToken()
 }
 ```
 
-2.  Creating a JWT NOT using the app/web config
+### Creating a JWT NOT using the app/web config
 
 ```C#
 public string GetNewToken()
@@ -82,7 +82,7 @@ Here is a list of all the default claims in Jot (https://tools.ietf.org/html/dra
 - sub => "Subject"
 - usr => "User"
 
-1. SetClaim method
+### SetClaim method
 
 ```C#
 public string AddingANewClaim()
@@ -105,7 +105,7 @@ public string AddingANewClaim()
 }
 ```
 
-2. Using OnCreate handler
+### Using OnCreate handler
 
 ```C#
 public string AddClaimUsingOnCreateHandler()
@@ -129,7 +129,7 @@ public string AddClaimUsingOnCreateHandler()
 }
 ```
 
-3. Create method parameters
+### Create method parameters
 
 ```C#
 public string AddClaimUsingCreateMethodParameters()
@@ -169,7 +169,7 @@ Built-in Hash Options
 + HS384
 + HS512
 
-1.  OnHash handler
+### OnHash handler
 If you do not want to use the built in hash methods, you may use your own.  See below
 
 ```C#
@@ -197,7 +197,7 @@ public string UsingTheOhHashHandler()
 }
 ```
 
-2.  Using the config
+### Using the config
 Change the **type** in the Encryption node to change encryption.  See defaults above for options
 
 ```xml
@@ -207,7 +207,7 @@ Change the **type** in the Encryption node to change encryption.  See defaults a
   </Jot>
 ```
 
-3.  Using the jots constructor
+### Using the jots constructor
 
 ```C#
 public string UseTheProviderConstructor()
@@ -224,7 +224,7 @@ public string UseTheProviderConstructor()
 # Hash Secret/Key
 There are two different options for the hash key/secret
 
-1.  Use the Encode method parameter
+### Use the Encode method parameter
 
 ```C#
 public string UseSecretInEncodeMethodAsParameter()
@@ -239,7 +239,7 @@ public string UseSecretInEncodeMethodAsParameter()
 }
 ```
 
-2.  Use the config
+### Use the config
 
 ```C#
 public string UseSecretInEncodeMethodAsParameter()
@@ -274,7 +274,7 @@ TokenValidationResult
 -CreatedTimeCheckFailed,
 -Passed
 
-1.  Default Verificaiton<br/><br/>
+### Default Verificaiton<br/><br/>
 Claims Verified By Default:
 
 + nbf
@@ -293,7 +293,7 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 }
 ```
 
-2.  Using the JotValidationContainer
+### Using the JotValidationContainer
 The JotValidationContainer lets the user customize the tokens verification
 
 ```C#
@@ -324,7 +324,7 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 }
 ```
 
-3.  Validate without the config secret
+### Validate without the config secret
 
 ```C#
 public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
@@ -443,7 +443,7 @@ Settings
   * useGhostClaims - tells your **Jot** whether or not to use **Ghost Claims**
   * secret - secret/key to hash the signature of a token
 
-1.  App.config
+### App.config
 
 ```xml
 <?xml version="1.0" encoding="utf-8" ?>
@@ -463,7 +463,7 @@ Settings
 </configuration>
 ```
 
-2.  Web.config
+### Web.config
 
 ```xml
 <?xml version="1.0" encoding="utf-8" ?>
