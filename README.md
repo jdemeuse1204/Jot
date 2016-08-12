@@ -7,6 +7,11 @@
 ## Getting Started
 Jot is very easy to get started, use nuget to add the reference to your project
 
+Nuget Install
+```cmd
+PM> Install-Package Jot.Jwt.Token.Authorization
+```
+
 ##Customization
 **Jot** is highly customizable, allowing end users to configure just about anything.  Developers can configure everything from how the token is verified, to custom hash algorithms, to validating custom claims.  Out of the box, it will produce a standard JWT according to specifications referenced below.  Here is a list of everything that can be customized:
 
