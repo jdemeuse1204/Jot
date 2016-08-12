@@ -58,6 +58,21 @@ namespace Jot.Tests
         }
     }
 
+    public class TestGhostClaimTokenProvider : JotProvider
+    {
+        public TestGhostClaimTokenProvider()
+                        : base(30, HashAlgorithm.HS512, true)
+        {
+            OnGetGhostClaims += OnOnGetGhostClaims;
+        }
+
+        private Dictionary<string, object> OnOnGetGhostClaims()
+        {
+            return new Dictionary<string, object> { { "cid", "test" } };
+        }
+    }
+
+
     public class TestHashJwtTokenProvider : JotProvider
     {
         public TestHashJwtTokenProvider()
@@ -74,20 +89,6 @@ namespace Jot.Tests
             {
                 return sha.ComputeHash(toEncrypt);
             }
-        }
-    }
-
-    public class TestGhostClaimTokenProvider : JotProvider
-    {
-        public TestGhostClaimTokenProvider()
-                        : base(30, HashAlgorithm.HS512, true)
-        {
-            OnGetGhostClaims += OnOnGetGhostClaims;
-        }
-
-        private Dictionary<string, object> OnOnGetGhostClaims()
-        {
-            return new Dictionary<string, object> { { "cid", "test" } };
         }
     }
 
@@ -206,8 +207,23 @@ namespace Jot.Tests
         public void MakeSureGhostClaimsAreOnlyAddedToSignatureAndNotClaims()
         {
             var jot = new TestGhostClaimTokenProvider();
+            var otherProvider = new JotProvider(30, HashAlgorithm.HS512);
 
             var token = jot.Create();
+            var otherToken = otherProvider.Create();
+
+            otherToken.SetClaim(JotDefaultClaims.EXP, token.GetClaim<double>(JotDefaultClaims.EXP));
+            otherToken.SetClaim(JotDefaultClaims.NBF, token.GetClaim<double>(JotDefaultClaims.NBF));
+            otherToken.SetClaim(JotDefaultClaims.IAT, token.GetClaim<double>(JotDefaultClaims.IAT));
+            otherToken.SetClaim(JotDefaultClaims.JTI, token.GetClaim<Guid>(JotDefaultClaims.JTI));
+
+            otherToken.SetHeader(JotDefaultHeaders.TYP, "JWT");
+            otherToken.SetHeader(JotDefaultHeaders.ALG, "Anonymous");
+
+            //otherProvider.OnGetGhostClaims += () => new Dictionary<string, object>
+            //{
+            //    {"cid", "test"}
+            //};
 
             // must happen before reflection method, encode sets the encryption type
             var encodedToken = jot.Encode(token);
@@ -215,12 +231,13 @@ namespace Jot.Tests
             var method = typeof(JotProvider).GetMethod("_getEncrytedSignature", BindingFlags.Instance | BindingFlags.NonPublic);
 
             var encryptedSignature = method.Invoke(jot, new object[] { token, "sjdfhikjsjhdkfjjhsdlkfhsakd" });
+            var otherEncryptedSignature = method.Invoke(otherProvider, new object[] { otherToken, "sjdfhikjsjhdkfjjhsdlkfhsakd" });
 
             var signature = encodedToken.Split('.')[2];
 
             var decodedToken = jot.Decode(encodedToken);
 
-            Assert.IsTrue(string.Equals(encryptedSignature, signature) && !decodedToken.ClaimExists("cid"));
+            Assert.IsTrue(string.Equals(encryptedSignature, signature) && !decodedToken.ClaimExists("cid") && !string.Equals(encryptedSignature, otherEncryptedSignature));
         }
 
         [TestMethod]

@@ -15,9 +15,9 @@ namespace Jot.Console
             var userId = Guid.NewGuid();
             var jot = new JotProvider(30, HashAlgorithm.HS512);
 
-            jot.OnGetGhostClaims += () => new Dictionary<string, object> {{"cid", userId } };
-
             var token = jot.Create();
+
+            //token.SetGhostClaim("cid", userId);
 
             var encoded = jot.Encode(token);
 
