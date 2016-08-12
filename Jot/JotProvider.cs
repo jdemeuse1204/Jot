@@ -463,7 +463,7 @@ namespace Jot
 
         //https://stormpath.com/blog/jwt-the-right-way
         //https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32#section-4.1.4
-        public class JwtToken : IJotToken
+        private class JwtToken : IJotToken
         {
             #region Properties And Fields
 
