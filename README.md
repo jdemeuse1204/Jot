@@ -365,6 +365,7 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 Typically, tokens cannot be invalidated in any way.  This can cause a big issue if a token becomes compromised and that token cannot be invalidated.  With **Jot** tokens can indeed be invalidated through the use of the jti claim or claim id.  To implement claim id's correctly, jti's must be stored somewhere on the server.  Below is how I have used jti's to invalidate claims.
 
 JSONWebTokenTable
+
 | Id             | IssuedUserId  | IssuedDate  | IsBlackListed |
 | -------------- |:-------------:| :----------:| -------------:|
 | Token Jti      | User Id       | DateTime    | True or False |
