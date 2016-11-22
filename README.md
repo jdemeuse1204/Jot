@@ -1,6 +1,8 @@
 # Jot
 **Jot** is a .NET library for use with JSON Web Tokens (JWT).  Jot will take care of all your JWT creation, encryption(hashing), and verification for you.  **Jot** was made extremely flexible, if you want to use your own hash algorithm, serialization, or set custom claims it's all there for you.  What set's **Jot** apart from others is the ability to use **Ghost Claims**.  This feature helps guard against a JWT being decoded by someone you do not want decoding your JWT.  See below for an explanation on **Ghost Claims**.  **Jot** was built on .NET 4.0.
 
+With **Jot** it **IS** possible to invalidate a token.  See the **Invalidating Tokens** section below.
+
 ## Current Version
 1.0.0
 
@@ -264,15 +266,15 @@ Config file
 # Token Verification
 
 TokenValidationResult
--NotBeforeFailed,
--TokenExpired,
--TokenNotCorrectlyFormed,
--SignatureNotValid,
--OnTokenValidateFailed,
--OnJtiValidateFailed,
--CustomCheckFailed,
--CreatedTimeCheckFailed,
--Passed
+- NotBeforeFailed
+- TokenExpired
+- TokenNotCorrectlyFormed
+- SignatureNotValid
+- OnTokenValidateFailed
+- OnJtiValidateFailed
+- CustomCheckFailed
+- CreatedTimeCheckFailed
+- Passed
 
 ### Default Verificaiton<br/><br/>
 Claims Verified By Default:
@@ -359,6 +361,57 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
   // be used for serializing and deserializing the token
 }
 ```
+# Invalidating a Token
+Typically, tokens cannot be invalidated in any way.  This can cause a big issue if a token becomes compromised and that token cannot be invalidated.  With **Jot** tokens can indeed be invalidated through the use of the jti claim or claim id.  To implement claim id's correctly, jti's must be stored somewhere on the server.  Below is how I have used jti's to invalidate claims.
+
+JSONWebTokenTable
+| Id             | IssuedUserId  | IssuedDate  | IsBlackListed |
+| -------------- |:-------------:| :----------:| -------------:|
+| Token Jti      | User Id       | DateTime    | True or False |
+
+1.  When issuing a new token, insert a record into the JSONWebTokenTable and set the jti claim of the token to the id of the newly created row.
+2.  Tell the **Jot** to validate the jti claim
+
+```C#
+public MyTokeProvider : JotProvider
+{
+  public MyTokeProvider()
+  {
+    OnJtiValidate += OnOnJtiValidate;
+  }
+  
+  private bool OnOnJtiValidate(Guid jti, IJotToken token)
+  {
+    // validate token here with the table we just made
+  }
+}
+```
+
+3.  Checking the jti every time can create a lot of database hits.  You can configure when you want to check the jti.  Below is an example of how to optionally check the jti.
+
+```C#
+private bool _isTokenValid(string encodedToken, string role, bool checkJti)
+{
+    if (string.IsNullOrEmpty(encodedToken)) return false;
+
+    var validationContainer = new JotValidationContainer();
+
+    if (!checkJti) validationContainer.SkipClaimVerification(JotDefaultClaims.JTI);
+
+    var result = Validate(encodedToken, validationContainer);
+
+    // log the results we want to know about
+    if (result != TokenValidationResult.Passed && result != TokenValidationResult.TokenExpired)
+    {
+        _logger.Debug(string.Format("Token Validation Attempt Failed: {0}", result));
+    }
+
+
+    return result == TokenValidationResult.Passed;
+}
+```
+
+4.  If the jti is invalid, prompt the user to login again.  On a successful login, issue a new jti to the user.
 
 # Ghost Claims
 Before explaining **Ghost Claims**, you must understand the parts to a JSON Web Token.  If you understand the parts skip to the next paragraph.  There are three parts to a JWT.  They are header, claims, and signature.  The header and claims are just Base64Url encoded strings, but the signature is a hash of the concatenation of the Base64Url encoded headers plus a period plus Base64Url encoded claims. (  Hash(base64UrlEncode(headers) + "." +
