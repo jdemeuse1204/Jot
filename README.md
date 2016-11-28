@@ -27,6 +27,7 @@ PM> Install-Package Jot.Jwt.Token.Authorization
 8.  Validating Custom Claims
 9.  Token TimeOut
 10.  Custom Headers
+11.  Using ASP.NET filters with JOT (Custom Authorize Attribute)
 
 #Token Creation
 
@@ -385,6 +386,16 @@ public MyTokeProvider : JotProvider
   {
     // validate token here with the table we just made
   }
+  
+   public bool IsTokenValid(string encodedToken, string role, bool checkJti = false)
+   {
+       return _isTokenValid(encodedToken, role, checkJti, true);
+   }
+   
+   private bool _isTokenValid(string encodedToken, string role, bool checkJti)
+   {
+      ... (See Implementation below)
+   }
 }
 ```
 
@@ -413,6 +424,131 @@ private bool _isTokenValid(string encodedToken, string role, bool checkJti)
 ```
 
 4.  If the jti is invalid, prompt the user to login again.  On a successful login, issue a new jti to the user.
+
+# ASP.NET Authentication Filter
+Using **JOT** with ASP.NET filters is very easy.  Below is an example of setup and usage of an authentication filter.
+
+
+Creating the custom attribute
+```C#
+    public class JwtAuthorizeAttribute : Attribute, IAuthenticationFilter
+    {
+        private readonly string _role;
+
+        private readonly bool _checkJti;
+
+        public JwtAuthorizeAttribute(string role, bool checkJti = false)
+        {
+            _role = role;
+            _checkJti = checkJti;
+        }
+
+        public JwtAuthorizeAttribute(bool checkJti = false)
+        {
+            _role = string.Empty;
+            _checkJti = checkJti;
+        }
+
+        public bool AllowMultiple { get { return false; } }
+
+        public async Task AuthenticateAsync(HttpAuthenticationContext context, CancellationToken cancellationToken)
+        {
+            //From: http://www.asp.net/web-api/overview/security/authentication-filters
+            // 1. Look for credentials in the request.
+            var request = context.Request;
+            string scheme;
+            string token;
+
+            try
+            {
+                var authorization = request.Headers.Authorization;
+
+                scheme = BearerToken.GetScheme(authorization);
+                token = BearerToken.GetToken(authorization);
+            }
+            catch (Exception ex)
+            {
+                context.ErrorResult = new UnauthorizedResult(new AuthenticationHeaderValue[0], context.Request);
+                return;
+            }
+
+
+            if (scheme != "Bearer")
+            {
+                context.ErrorResult = new UnauthorizedResult(new AuthenticationHeaderValue[0], context.Request);
+                return;
+            }
+
+            // Get credential from the Authorization header 
+            if (string.IsNullOrEmpty(token))
+            {
+                context.ErrorResult = new UnauthorizedResult(new AuthenticationHeaderValue[0], context.Request);
+                return;
+            }
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(_role))
+                {
+                    if (!Provider.IsTokenValid(token, _checkJti))
+                    {
+                        context.ErrorResult = new UnauthorizedResult(new AuthenticationHeaderValue[0], context.Request);
+                    }
+                    return;
+                }
+
+                if (!Provider.IsTokenValid(token, _role, _checkJti))
+                {
+                    context.ErrorResult = new UnauthorizedResult(new AuthenticationHeaderValue[0], context.Request);
+                }
+            }
+            catch (Exception ex)
+            {
+                context.ErrorResult = new UnauthorizedResult(new AuthenticationHeaderValue[0], context.Request);
+            }
+        }
+
+        public Task ChallengeAsync(HttpAuthenticationChallengeContext context, CancellationToken cancellationToken)
+        {
+            context.Result = new ResultWithChallenge(context.Result);
+
+            return Task.FromResult(0);
+        }
+
+        private class ResultWithChallenge : IHttpActionResult
+        {
+            private readonly IHttpActionResult next;
+
+            public ResultWithChallenge(IHttpActionResult next)
+            {
+                this.next = next;
+            }
+
+            public async Task<HttpResponseMessage> ExecuteAsync(CancellationToken cancellationToken)
+            {
+                var response = await next.ExecuteAsync(cancellationToken);
+
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    response.Headers.WwwAuthenticate.Add(new AuthenticationHeaderValue("Bearer"));
+                }
+
+                return response;
+            }
+        }
+    }
+```
+
+Usage
+```C#
+        [HttpGet]
+        [JwtAuthorize]
+        [Route("MyRoute")]
+        public object MyRoute(int someId)
+        {
+            /// If JwtAuthorize fails, a 401 will be returned and any code here will not be run
+        }
+```
 
 # Ghost Claims
 Before explaining **Ghost Claims**, you must understand the parts to a JSON Web Token.  If you understand the parts skip to the next paragraph.  There are three parts to a JWT.  They are header, claims, and signature.  The header and claims are just Base64Url encoded strings, but the signature is a hash of the concatenation of the Base64Url encoded headers plus a period plus Base64Url encoded claims. (  Hash(base64UrlEncode(headers) + "." +
