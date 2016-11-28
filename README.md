@@ -415,7 +415,7 @@ private bool _isTokenValid(string encodedToken, string role, bool checkJti)
     // log the results we want to know about
     if (result != TokenValidationResult.Passed && result != TokenValidationResult.TokenExpired)
     {
-        _logger.Debug(string.Format("Token Validation Attempt Failed: {0}", result));
+        // do something with failed attempt
     }
 
 
@@ -462,8 +462,11 @@ Creating the custom attribute
             try
             {
                 var authorization = request.Headers.Authorization;
-
+                
+                // BearerToken is a custom class, create your own way to get the scheme
                 scheme = BearerToken.GetScheme(authorization);
+                
+                // BearerToken is a custom class, create your own way to get the token
                 token = BearerToken.GetToken(authorization);
             }
             catch (Exception ex)
