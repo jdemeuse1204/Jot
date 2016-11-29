@@ -545,7 +545,7 @@ Creating the custom attribute
 Usage
 ```C#
         [HttpGet]
-        [JwtAuthorize]
+        [JwtAuthorize(true)] // bool tells the service to check the claim id or to skip it
         [Route("MyRoute")]
         public object MyRoute(int someId)
         {
