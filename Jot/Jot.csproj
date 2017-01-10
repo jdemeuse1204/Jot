@@ -43,6 +43,8 @@
   <ItemGroup>
     <Compile Include="IEncryptionSecret.cs" />
     <Compile Include="IJwtToken.cs" />
+    <Compile Include="Time\ITimeProvider.cs" />
+    <Compile Include="Time\IUnixTimeProvider.cs" />
     <Compile Include="JwtAuthConfigurationSection.cs" />
     <Compile Include="JwtClaimPayload.cs" />
     <Compile Include="JwtEncryption.cs" />
@@ -51,6 +53,8 @@
     <Compile Include="JwtValidationContainer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SingleEncryptionSecret.cs" />
+    <Compile Include="Time\TimeProvider.cs" />
+    <Compile Include="Time\UnixTimeProvider.cs" />
     <Compile Include="TokenValidationResult.cs" />
     <Compile Include="TripleEncryptionSecret.cs" />
   </ItemGroup>

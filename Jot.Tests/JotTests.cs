@@ -5,35 +5,13 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web.Script.Serialization;
+using Jot.Time;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Shouldly;
 
 namespace Jot.Tests
 {
     #region Helpers
-    public static class UnixDateServices
-    {
-        public static double GetUnixTimestamp(double jwtAuthorizationTimeOut)
-        {
-            var millisecondsTimeOut = ((jwtAuthorizationTimeOut * 60) * 1000);
-
-            return Math.Round(GetUnixTimestamp() + millisecondsTimeOut);
-        }
-
-        private static DateTime _unixEpoch()
-        {
-            return new DateTime(1970, 1, 1).ToLocalTime();
-        }
-
-        public static double GetUnixTimestamp()
-        {
-            return Math.Round(DateTime.UtcNow.Subtract(_unixEpoch()).TotalSeconds);
-        }
-
-        public static DateTime ToDateTimeFromUnixEpoch(double unixTimestamp)
-        {
-            return _unixEpoch().AddSeconds(unixTimestamp);
-        }
-    }
 
     public static class Serializer
     {
@@ -382,6 +360,7 @@ namespace Jot.Tests
     [TestClass]
     public class JotTests
     {
+        private UnixTimeProvider _timeProvider => new UnixTimeProvider(new TimeProvider());
         #region Tests Using the Configuration
 
         #region Token Creation
@@ -431,7 +410,10 @@ namespace Jot.Tests
             var jti = token.GetClaim<Guid>("jti");
             var nbf = token.GetClaim<double>("nbf");
 
-            Assert.IsTrue(exp > 0 && iat > 0 && nbf > 0 && jti != Guid.Empty);
+            iat.ShouldBeGreaterThan(0);
+            nbf.ShouldBeGreaterThan(0);
+            exp.ShouldBeGreaterThan(0);
+            jti.ShouldNotBe(Guid.Empty);
         }
 
         [TestMethod]
@@ -478,15 +460,17 @@ namespace Jot.Tests
         {
             var provider = new JwtTokenProvider();
 
+            var unixTimestamp = _timeProvider.GetUnixTimestamp();
+
             var payload = new JwtClaimPayload
             {
-                {"iat", UnixDateServices.GetUnixTimestamp()},
-                {"exp", UnixDateServices.GetUnixTimestamp(30)},
+                {"iat", unixTimestamp},
+                {"exp", unixTimestamp + 30 * 60},
                 {"rol", "Test"},
                 {"jti", Guid.Empty},
                 {"iss", "Test"},
                 {"aud", ""},
-                {"nbf", (UnixDateServices.GetUnixTimestamp(0) + 10000)},
+                {"nbf", (unixTimestamp + 10000)},
                 {"sub", ""},
                 {"usr", ""}
             };
@@ -497,7 +481,7 @@ namespace Jot.Tests
 
             var isValid = provider.Validate(jwt);
 
-            Assert.IsTrue(isValid == TokenValidationResult.NotBeforeFailed);
+            isValid.ShouldBe(TokenValidationResult.NotBeforeFailed);
         }
 
         [TestMethod]
@@ -507,13 +491,13 @@ namespace Jot.Tests
 
             var payload = new JwtClaimPayload
             {
-                {"iat", UnixDateServices.GetUnixTimestamp()},
-                {"exp", UnixDateServices.GetUnixTimestamp(30)},
+                {"iat", _timeProvider.GetUnixTimestamp()},
+                {"exp", _timeProvider.GetUnixTimestamp(30)},
                 {"rol", "Test"},
                 {"jti", Guid.Empty},
                 {"iss", "Test"},
                 {"aud", ""},
-                {"nbf", (UnixDateServices.GetUnixTimestamp(0))},
+                {"nbf", (_timeProvider.GetUnixTimestamp(0))},
                 {"sub", ""},
                 {"usr", ""}
             };
@@ -524,7 +508,7 @@ namespace Jot.Tests
 
             var isValid = provider.Validate(jwt);
 
-            Assert.IsTrue(isValid == TokenValidationResult.Passed);
+            isValid.ShouldBe(TokenValidationResult.Passed);
         }
 
         #region Event Checking
@@ -549,13 +533,13 @@ namespace Jot.Tests
 
                 return new JwtClaimPayload
                 {
-                    {"iat", UnixDateServices.GetUnixTimestamp()},
-                    {"exp", UnixDateServices.GetUnixTimestamp(30)},
+                    {"iat", _timeProvider.GetUnixTimestamp()},
+                    {"exp", _timeProvider.GetUnixTimestamp(30)},
                     {"rol", "MakeSureCreateEventWorks"},
                     {"jti", Guid.Empty},
                     {"iss", "Test"},
                     {"aud", ""},
-                    {"nbf", UnixDateServices.GetUnixTimestamp()},
+                    {"nbf", _timeProvider.GetUnixTimestamp()},
                     {"sub", ""},
                     {"usr", ""}
                 };
@@ -576,13 +560,13 @@ namespace Jot.Tests
 
             provider.OnCreate += () => new JwtClaimPayload
             {
-                {"iat", UnixDateServices.GetUnixTimestamp()},
-                {"exp", UnixDateServices.GetUnixTimestamp(30)},
+                {"iat", _timeProvider.GetUnixTimestamp()},
+                {"exp", _timeProvider.GetUnixTimestamp(30)},
                 {"rol", "MakeSureCreateEventWorks"},
                 {"jti", Guid.Empty},
                 {"iss", "Test"},
                 {"aud", ""},
-                {"nbf", UnixDateServices.GetUnixTimestamp()},
+                {"nbf", _timeProvider.GetUnixTimestamp()},
                 {"sub", ""},
                 {"usr", ""}
             };
@@ -600,7 +584,7 @@ namespace Jot.Tests
 
             var validationResult = provider.Validate(encoded);
 
-            Assert.IsTrue(validationResult == TokenValidationResult.OnJtiValidateFailed);
+            validationResult.ShouldBe(TokenValidationResult.OnJtiValidateFailed);
         }
 
         [TestMethod]
@@ -611,13 +595,13 @@ namespace Jot.Tests
 
             provider.OnCreate += () => new JwtClaimPayload
             {
-                {"iat", UnixDateServices.GetUnixTimestamp()},
-                {"exp", UnixDateServices.GetUnixTimestamp(30)},
+                {"iat", _timeProvider.GetUnixTimestamp()},
+                {"exp", _timeProvider.GetUnixTimestamp(30)},
                 {"rol", "MakeSureCreateEventWorks"},
                 {"jti", Guid.Empty},
                 {"iss", "Test"},
                 {"aud", ""},
-                {"nbf", UnixDateServices.GetUnixTimestamp()},
+                {"nbf", _timeProvider.GetUnixTimestamp()},
                 {"sub", ""},
                 {"usr", ""}
             };
@@ -635,7 +619,8 @@ namespace Jot.Tests
 
             var validationResult = provider.Validate(encoded);
 
-            Assert.IsTrue(validationResult == TokenValidationResult.OnTokenValidateFailed && wasOnTokenValidateRun);
+            wasOnTokenValidateRun.ShouldBe(true);
+            validationResult.ShouldBe(TokenValidationResult.OnTokenValidateFailed);
         }
 
         [TestMethod]
@@ -648,13 +633,13 @@ namespace Jot.Tests
 
             provider.OnCreate += () => new JwtClaimPayload
             {
-                {"iat", UnixDateServices.GetUnixTimestamp()},
-                {"exp", UnixDateServices.GetUnixTimestamp(30)},
+                {"iat", _timeProvider.GetUnixTimestamp()},
+                {"exp", _timeProvider.GetUnixTimestamp(30)},
                 {"rol", "MakeSureOnSerializeWorks"},
                 {"jti", Guid.Empty},
                 {"iss", "Test"},
                 {"aud", ""},
-                {"nbf", UnixDateServices.GetUnixTimestamp()},
+                {"nbf", _timeProvider.GetUnixTimestamp()},
                 {"sub", ""},
                 {"usr", ""}
             };
@@ -700,13 +685,13 @@ namespace Jot.Tests
 
             provider.OnCreate += () => new JwtClaimPayload
             {
-                {"iat", UnixDateServices.GetUnixTimestamp()},
-                {"exp", UnixDateServices.GetUnixTimestamp(30)},
+                {"iat", _timeProvider.GetUnixTimestamp()},
+                {"exp", _timeProvider.GetUnixTimestamp(30)},
                 {"rol", "MakeSureOnSerializeWorks"},
                 {"jti", Guid.Empty},
                 {"iss", "Test"},
                 {"aud", ""},
-                {"nbf", UnixDateServices.GetUnixTimestamp()},
+                {"nbf", _timeProvider.GetUnixTimestamp()},
                 {"sub", ""},
                 {"usr", ""}
             };
