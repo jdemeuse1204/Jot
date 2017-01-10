@@ -19,14 +19,31 @@ namespace Jot
     public class JwtTokenProvider
     {
         #region Constructor
-        public JwtTokenProvider(int jwtTimeOutInMinutes, JwtEncryption encryptionType)
+        public JwtTokenProvider(int jwtTimeOutInMinutes, JwtEncryption encryptionType) 
+            : this(CreateUnixTimeProvider(), jwtTimeOutInMinutes, encryptionType )
         {
+        }
+
+        public JwtTokenProvider(IUnixTimeProvider timeProvider, int jwtTimeOutInMinutes, JwtEncryption encryptionType)
+        {
+            _timeProvider = timeProvider;
             JwtTimeout = jwtTimeOutInMinutes;
             EncryptionType = encryptionType;
         }
 
-        public JwtTokenProvider()
+        public JwtTokenProvider() : this(CreateUnixTimeProvider())
         {
+        }
+
+        private static UnixTimeProvider CreateUnixTimeProvider()
+        {
+            return new UnixTimeProvider(new TimeProvider());
+        }
+
+        public JwtTokenProvider(IUnixTimeProvider timeProvider)
+        {
+            _timeProvider = timeProvider;
+
             var section = _getConfigurationSection();
 
             _isConfigurationValid(section);
@@ -85,9 +102,12 @@ namespace Jot
         #endregion
 
         #region Properties and Fields
+        private readonly IUnixTimeProvider _timeProvider;
+
         public readonly int JwtTimeout;
 
         public readonly JwtEncryption EncryptionType;
+
         #endregion
 
         #region Create
@@ -335,7 +355,7 @@ namespace Jot
             var timeOut = _getTimeOut(section);
 
             // refresh the expiration date
-            jwt.SetClaim("exp", UnixDateServices.GetUnixTimestamp(timeOut));
+            jwt.SetClaim("exp", _timeProvider.GetUnixTimestamp(timeOut));
 
             return token;
         }
@@ -373,7 +393,7 @@ namespace Jot
                 var exp = jwt.GetClaim<double>("exp");
 
                 // check nbf
-                var currentUnixTime = UnixDateServices.GetUnixTimestamp();
+                var currentUnixTime = _timeProvider.GetUnixTimestamp();
                 var isNbfValid = true;
 
                 if (validationContainer != null)
@@ -879,39 +899,6 @@ namespace Jot
                 return _simpleDecrypt(encryptedMessage, cryptKey, authKey, cryptSalt.Length + authSalt.Length + nonSecretPayloadLength);
             }
             #endregion
-        }
-        #endregion
-
-        #region Date Services 
-
-        private static class UnixDateServices
-        {
-            /// <summary>
-            /// Gets the unix timestamp.
-            /// </summary>
-            /// <param name="jwtAuthorizationTimeOut">The JWT authorization time out in minutes.</param>
-            /// <returns></returns>
-            public static double GetUnixTimestamp(double jwtAuthorizationTimeOut)
-            {
-                var millisecondsTimeOut = ((jwtAuthorizationTimeOut*60)*1000);
-
-                return Math.Round(GetUnixTimestamp() + millisecondsTimeOut);
-            }
-
-            private static DateTime _unixEpoch()
-            {
-                return new DateTime(1970, 1, 1).ToLocalTime();
-            }
-
-            public static double GetUnixTimestamp()
-            {
-                return Math.Round(DateTime.UtcNow.Subtract(_unixEpoch()).TotalSeconds);
-            }
-
-            public static DateTime ToDateTimeFromUnixEpoch(double unixTimestamp)
-            {
-                return _unixEpoch().AddSeconds(unixTimestamp);
-            }
         }
         #endregion
     }
