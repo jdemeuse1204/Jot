@@ -1,18 +1,11 @@
 # Jot
 **Jot** is a .NET library for use with JSON Web Tokens (JWT).  Jot will take care of all your JWT creation, encryption(hashing), and verification for you.  **Jot** was made extremely flexible, if you want to use your own hash algorithm, serialization, or set custom claims it's all there for you.  What set's **Jot** apart from others is the ability to use **Ghost Claims**.  This feature helps guard against a JWT being decoded by someone you do not want decoding your JWT.  See below for an explanation on **Ghost Claims**.  **Jot** was built on .NET 4.0.
 
-With **Jot** it **IS** possible to invalidate a token.  See the **Invalidating Tokens** section below.
-
 ## Current Version
 1.0.0
 
 ## Getting Started
 Jot is very easy to get started, use nuget to add the reference to your project
-
-Nuget Install
-```cmd
-PM> Install-Package Jot.Jwt.Token.Authorization
-```
 
 ##Customization
 **Jot** is highly customizable, allowing end users to configure just about anything.  Developers can configure everything from how the token is verified, to custom hash algorithms, to validating custom claims.  Out of the box, it will produce a standard JWT according to specifications referenced below.  Here is a list of everything that can be customized:
@@ -27,11 +20,10 @@ PM> Install-Package Jot.Jwt.Token.Authorization
 8.  Validating Custom Claims
 9.  Token TimeOut
 10.  Custom Headers
-11.  Using ASP.NET filters with JOT (Custom Authorize Attribute)
 
 #Token Creation
 
-### Creating a JWT using the app/web config
+1.  Creating a JWT using the app/web config
 Please see the config section on how to configure your project to use the config settings.
 
 ```C#
@@ -52,7 +44,7 @@ public string GetNewToken()
 }
 ```
 
-### Creating a JWT NOT using the app/web config
+2.  Creating a JWT NOT using the app/web config
 
 ```C#
 public string GetNewToken()
@@ -85,7 +77,7 @@ Here is a list of all the default claims in Jot (https://tools.ietf.org/html/dra
 - sub => "Subject"
 - usr => "User"
 
-### SetClaim method
+1. SetClaim method
 
 ```C#
 public string AddingANewClaim()
@@ -108,7 +100,7 @@ public string AddingANewClaim()
 }
 ```
 
-### Using OnCreate handler
+2. Using OnCreate handler
 
 ```C#
 public string AddClaimUsingOnCreateHandler()
@@ -132,7 +124,7 @@ public string AddClaimUsingOnCreateHandler()
 }
 ```
 
-### Create method parameters
+3. Create method parameters
 
 ```C#
 public string AddClaimUsingCreateMethodParameters()
@@ -172,7 +164,7 @@ Built-in Hash Options
 + HS384
 + HS512
 
-### OnHash handler
+1.  OnHash handler
 If you do not want to use the built in hash methods, you may use your own.  See below
 
 ```C#
@@ -200,7 +192,7 @@ public string UsingTheOhHashHandler()
 }
 ```
 
-### Using the config
+2.  Using the config
 Change the **type** in the Encryption node to change encryption.  See defaults above for options
 
 ```xml
@@ -210,7 +202,7 @@ Change the **type** in the Encryption node to change encryption.  See defaults a
   </Jot>
 ```
 
-### Using the jots constructor
+3.  Using the jots constructor
 
 ```C#
 public string UseTheProviderConstructor()
@@ -227,7 +219,7 @@ public string UseTheProviderConstructor()
 # Hash Secret/Key
 There are two different options for the hash key/secret
 
-### Use the Encode method parameter
+1.  Use the Encode method parameter
 
 ```C#
 public string UseSecretInEncodeMethodAsParameter()
@@ -242,7 +234,7 @@ public string UseSecretInEncodeMethodAsParameter()
 }
 ```
 
-### Use the config
+2.  Use the config
 
 ```C#
 public string UseSecretInEncodeMethodAsParameter()
@@ -267,17 +259,17 @@ Config file
 # Token Verification
 
 TokenValidationResult
-- NotBeforeFailed
-- TokenExpired
-- TokenNotCorrectlyFormed
-- SignatureNotValid
-- OnTokenValidateFailed
-- OnJtiValidateFailed
-- CustomCheckFailed
-- CreatedTimeCheckFailed
-- Passed
+-NotBeforeFailed,
+-TokenExpired,
+-TokenNotCorrectlyFormed,
+-SignatureNotValid,
+-OnTokenValidateFailed,
+-OnJtiValidateFailed,
+-CustomCheckFailed,
+-CreatedTimeCheckFailed,
+-Passed
 
-### Default Verificaiton<br/><br/>
+1.  Default Verificaiton<br/><br/>
 Claims Verified By Default:
 
 + nbf
@@ -296,7 +288,7 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 }
 ```
 
-### Using the JotValidationContainer
+2.  Using the JotValidationContainer
 The JotValidationContainer lets the user customize the tokens verification
 
 ```C#
@@ -327,7 +319,7 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 }
 ```
 
-### Validate without the config secret
+3.  Validate without the config secret
 
 ```C#
 public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
@@ -361,196 +353,6 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
   // when the token is encoded/decoded/validated the above methods will
   // be used for serializing and deserializing the token
 }
-```
-# Invalidating a Token
-Typically, tokens cannot be invalidated in any way.  This can cause a big issue if a token becomes compromised and that token cannot be invalidated.  With **Jot** tokens can indeed be invalidated through the use of the jti claim or claim id.  To implement claim id's correctly, jti's must be stored somewhere on the server.  Below is how I have used jti's to invalidate claims.
-
-JSONWebTokenTable
-
-| Id             | IssuedUserId  | IssuedDate  | IsBlackListed |
-| -------------- |:-------------:| :----------:| -------------:|
-| Token Jti      | User Id       | DateTime    | True or False |
-
-1.  When issuing a new token, insert a record into the JSONWebTokenTable and set the jti claim of the token to the id of the newly created row.
-2.  Tell the **Jot** to validate the jti claim
-
-```C#
-public MyTokeProvider : JotProvider
-{
-  public MyTokeProvider()
-  {
-    OnJtiValidate += OnOnJtiValidate;
-  }
-  
-  private bool OnOnJtiValidate(Guid jti, IJotToken token)
-  {
-    // validate token here with the table we just made
-  }
-  
-   public bool IsTokenValid(string encodedToken, string role, bool checkJti = false)
-   {
-       return _isTokenValid(encodedToken, role, checkJti, true);
-   }
-   
-   private bool _isTokenValid(string encodedToken, string role, bool checkJti)
-   {
-      ... (See Implementation below)
-   }
-}
-```
-
-3.  Checking the jti every time can create a lot of database hits.  You can configure when you want to check the jti.  Below is an example of how to optionally check the jti.
-
-```C#
-private bool _isTokenValid(string encodedToken, string role, bool checkJti)
-{
-    if (string.IsNullOrEmpty(encodedToken)) return false;
-
-    var validationContainer = new JotValidationContainer();
-
-    if (!checkJti) validationContainer.SkipClaimVerification(JotDefaultClaims.JTI);
-
-    var result = Validate(encodedToken, validationContainer);
-
-    // log the results we want to know about
-    if (result != TokenValidationResult.Passed && result != TokenValidationResult.TokenExpired)
-    {
-        // do something with failed attempt
-    }
-
-
-    return result == TokenValidationResult.Passed;
-}
-```
-
-4.  If the jti is invalid, prompt the user to login again.  On a successful login, issue a new jti to the user.
-
-# ASP.NET Authentication Filter
-Using **JOT** with ASP.NET filters is very easy.  Below is an example of setup and usage of an authentication filter.
-
-
-Creating the custom attribute
-```C#
-    public class JwtAuthorizeAttribute : Attribute, IAuthenticationFilter
-    {
-        private readonly string _role;
-
-        private readonly bool _checkJti;
-
-        public JwtAuthorizeAttribute(string role, bool checkJti = false)
-        {
-            _role = role;
-            _checkJti = checkJti;
-        }
-
-        public JwtAuthorizeAttribute(bool checkJti = false)
-        {
-            _role = string.Empty;
-            _checkJti = checkJti;
-        }
-
-        public bool AllowMultiple { get { return false; } }
-
-        public async Task AuthenticateAsync(HttpAuthenticationContext context, CancellationToken cancellationToken)
-        {
-            //From: http://www.asp.net/web-api/overview/security/authentication-filters
-            // 1. Look for credentials in the request.
-            var request = context.Request;
-            string scheme;
-            string token;
-
-            try
-            {
-                var authorization = request.Headers.Authorization;
-                
-                // BearerToken is a custom class, create your own way to get the scheme
-                scheme = BearerToken.GetScheme(authorization);
-                
-                // BearerToken is a custom class, create your own way to get the token
-                token = BearerToken.GetToken(authorization);
-            }
-            catch (Exception ex)
-            {
-                context.ErrorResult = new UnauthorizedResult(new AuthenticationHeaderValue[0], context.Request);
-                return;
-            }
-
-
-            if (scheme != "Bearer")
-            {
-                context.ErrorResult = new UnauthorizedResult(new AuthenticationHeaderValue[0], context.Request);
-                return;
-            }
-
-            // Get credential from the Authorization header 
-            if (string.IsNullOrEmpty(token))
-            {
-                context.ErrorResult = new UnauthorizedResult(new AuthenticationHeaderValue[0], context.Request);
-                return;
-            }
-
-            try
-            {
-                if (string.IsNullOrWhiteSpace(_role))
-                {
-                    if (!Provider.IsTokenValid(token, _checkJti))
-                    {
-                        context.ErrorResult = new UnauthorizedResult(new AuthenticationHeaderValue[0], context.Request);
-                    }
-                    return;
-                }
-
-                if (!Provider.IsTokenValid(token, _role, _checkJti))
-                {
-                    context.ErrorResult = new UnauthorizedResult(new AuthenticationHeaderValue[0], context.Request);
-                }
-            }
-            catch (Exception ex)
-            {
-                context.ErrorResult = new UnauthorizedResult(new AuthenticationHeaderValue[0], context.Request);
-            }
-        }
-
-        public Task ChallengeAsync(HttpAuthenticationChallengeContext context, CancellationToken cancellationToken)
-        {
-            context.Result = new ResultWithChallenge(context.Result);
-
-            return Task.FromResult(0);
-        }
-
-        private class ResultWithChallenge : IHttpActionResult
-        {
-            private readonly IHttpActionResult next;
-
-            public ResultWithChallenge(IHttpActionResult next)
-            {
-                this.next = next;
-            }
-
-            public async Task<HttpResponseMessage> ExecuteAsync(CancellationToken cancellationToken)
-            {
-                var response = await next.ExecuteAsync(cancellationToken);
-
-                if (response.StatusCode == HttpStatusCode.Unauthorized)
-                {
-                    response.Headers.WwwAuthenticate.Add(new AuthenticationHeaderValue("Bearer"));
-                }
-
-                return response;
-            }
-        }
-    }
-```
-
-Usage
-```C#
-        [HttpGet]
-        [JwtAuthorize(true)] // bool tells the service to check the claim id or to skip it
-        [Route("MyRoute")]
-        public object MyRoute(int someId)
-        {
-            /// If JwtAuthorize fails, a 401 will be returned and any code here will not be run
-        }
 ```
 
 # Ghost Claims
@@ -636,7 +438,7 @@ Settings
   * useGhostClaims - tells your **Jot** whether or not to use **Ghost Claims**
   * secret - secret/key to hash the signature of a token
 
-### App.config
+1.  App.config
 
 ```xml
 <?xml version="1.0" encoding="utf-8" ?>
@@ -656,7 +458,7 @@ Settings
 </configuration>
 ```
 
-### Web.config
+2.  Web.config
 
 ```xml
 <?xml version="1.0" encoding="utf-8" ?>

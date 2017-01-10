@@ -6,15 +6,15 @@
  * Copyright (c) 2016 James Demeuse
  */
 
+using System;
+
 namespace Jot
 {
-    public class SingleEncryptionSecret : IEncryptionSecret
+    public class JotException: Exception
     {
-        public SingleEncryptionSecret(string secret)
+        public JotException(string message) 
+            : base(message)
         {
-            Secret = secret;
         }
-
-        public string Secret { get; private set; }
     }
 }

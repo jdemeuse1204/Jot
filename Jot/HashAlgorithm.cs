@@ -8,8 +8,10 @@
 
 namespace Jot
 {
-    public interface IEncryptionSecret
+    public enum HashAlgorithm
     {
-        string Secret { get; }
+        HS256,
+        HS384,
+        HS512
     }
 }

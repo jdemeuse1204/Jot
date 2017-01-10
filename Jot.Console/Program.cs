@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,15 +11,19 @@ namespace Jot.Console
     {
         static void Main(string[] args)
         {
-            var provider = new JwtTokenProvider();
 
-            var token = provider.Create();
+            var userId = Guid.NewGuid();
+            var jot = new JotProvider(30, HashAlgorithm.HS512);
 
-            var encoded = provider.Encode(token);
+            var token = jot.Create();
 
-            //var decoded = provider.Decode(encoded);
+            //token.SetGhostClaim("cid", userId);
 
-            if (provider.Validate(encoded) == TokenValidationResult.Passed)
+            var encoded = jot.Encode(token);
+
+            var decoded = jot.Decode(encoded);
+
+            if (jot.Validate(encoded) == TokenValidationResult.Passed)
             {
 
             }
