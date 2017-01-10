@@ -6,6 +6,7 @@
  * Copyright (c) 2016 James Demeuse
  */
 
+using Jot.Time;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,11 +24,31 @@ namespace Jot
             JwtTimeout = jwtTimeOutInMinutes;
             HashAlgorithm = hashAlgorithm;
             UseGhostClaims = useGhostClaims;
+            _timeProvider = CreateUnixTimeProvider();
         }
 
-        public JotProvider()
+        public JotProvider(IUnixTimeProvider timeProvider, int jwtTimeOutInMinutes, HashAlgorithm hashAlgorithm, bool useGhostClaims = false)
+        {
+            JwtTimeout = jwtTimeOutInMinutes;
+            HashAlgorithm = hashAlgorithm;
+            UseGhostClaims = useGhostClaims;
+            _timeProvider = timeProvider;
+        }
+
+        public JotProvider() : this(CreateUnixTimeProvider())
+        {
+        }
+
+        private static UnixTimeProvider CreateUnixTimeProvider()
+        {
+            return new UnixTimeProvider(new TimeProvider());
+        }
+
+        public JotProvider(IUnixTimeProvider timeProvider)
         {
             var section = _getConfigurationSection();
+
+            _timeProvider = timeProvider;
 
             // make sure the configuration is valid
             _checkConfigurationIsValid(section);
@@ -83,6 +104,8 @@ namespace Jot
         #endregion
 
         #region Properties and Fields
+        private readonly IUnixTimeProvider _timeProvider;
+
         public readonly int JwtTimeout;
 
         public readonly HashAlgorithm HashAlgorithm;
@@ -124,7 +147,7 @@ namespace Jot
         #region Create
         public IJotToken Create(Dictionary<string, object> extraHeaders, Dictionary<string, object> claims)
         {
-            var token = new JwtToken(JwtTimeout);
+            var token = new JwtToken(_timeProvider, JwtTimeout);
 
             // set and add claims
             foreach (var claim in claims) token.SetClaim(claim.Key, claim.Value);
@@ -132,28 +155,28 @@ namespace Jot
             // add extra headers
             foreach (var header in extraHeaders) token.SetHeader(header.Key, header.Value);
 
-            if(OnCreate != null) OnCreate(token);
+            OnCreate?.Invoke(token);
 
             return token;
         }
 
         public IJotToken Create(Dictionary<string, object> claims)
         {
-            var token = new JwtToken(JwtTimeout);
+            var token = new JwtToken(_timeProvider, JwtTimeout);
 
             // set and add claims
             foreach (var claim in claims) token.SetClaim(claim.Key, claim.Value);
 
-            if (OnCreate != null) OnCreate(token);
+            OnCreate?.Invoke(token);
 
             return token;
         }
 
         public IJotToken Create()
         {
-            var token = new JwtToken(JwtTimeout);
+            var token = new JwtToken(_timeProvider, JwtTimeout);
 
-            if (OnCreate != null) OnCreate(token);
+            OnCreate?.Invoke(token);
 
             return token;
         }
@@ -327,6 +350,11 @@ namespace Jot
 
         #region Refresh Token
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="encodedToken"></param>
+        /// <returns></returns>
         public IJotToken Refresh(string encodedToken)
         {
             var token = Decode(encodedToken);
@@ -341,7 +369,7 @@ namespace Jot
             if (jwt == null) throw new Exception("Token is not formed correctly");
 
             // refresh the expiration date
-            jwt.SetClaim(JotDefaultClaims.EXP, UnixDateServices.GetUnixTimestamp(JwtTimeout));
+            jwt.SetClaim(JotDefaultClaims.EXP, _timeProvider.GetUnixTimestamp(JwtTimeout));
 
             return token;
         }
@@ -350,6 +378,11 @@ namespace Jot
 
         #region Validation
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="encodedToken"></param>
+        /// <returns></returns>
         public TokenValidationResult Validate(string encodedToken)
         {
             return Validate(encodedToken, new JotValidationContainer());
@@ -402,7 +435,7 @@ namespace Jot
             var iat = jwt.GetClaim<double>(JotDefaultClaims.IAT);
 
             // check nbf
-            var currentUnixTime = UnixDateServices.GetUnixTimestamp();
+            var currentUnixTime = _timeProvider.GetUnixTimestamp();
             var isNbfValid = true;
             var isIatValid = true;
             var isExpirationValid = true;
@@ -475,17 +508,17 @@ namespace Jot
 
             #region Constructor
 
-            public JwtToken(int jwtTimeOut)
+            public JwtToken(IUnixTimeProvider timeProvider, int jwtTimeOut)
             {
                 _claims = new Dictionary<string, object>
                 {
-                    {JotDefaultClaims.IAT, UnixDateServices.GetUnixTimestamp()},
-                    {JotDefaultClaims.EXP, UnixDateServices.GetUnixTimestamp(jwtTimeOut)},
+                    {JotDefaultClaims.IAT, timeProvider.GetUnixTimestamp()},
+                    {JotDefaultClaims.EXP, timeProvider.GetUnixTimestamp(jwtTimeOut)},
                     {JotDefaultClaims.ROL, ""},
                     {JotDefaultClaims.JTI, Guid.NewGuid()},
                     {JotDefaultClaims.ISS, ""},
                     {JotDefaultClaims.AUD, ""},
-                    {JotDefaultClaims.NBF, UnixDateServices.GetUnixTimestamp()},
+                    {JotDefaultClaims.NBF, timeProvider.GetUnixTimestamp()},
                     {JotDefaultClaims.SUB, ""},
                     {JotDefaultClaims.USR, ""}
                 };
@@ -599,34 +632,10 @@ namespace Jot
                         s += "=";
                         break; // One pad char
                     default:
-                        throw new System.Exception("Illegal base64url string!");
+                        throw new Exception("Illegal base64url string!");
                 }
 
                 return Convert.FromBase64String(s); // Standard base64 decoder
-            }
-        }
-
-        #endregion
-        
-        #region Date Services 
-
-        private static class UnixDateServices
-        {
-            public static double GetUnixTimestamp(double jwtAuthorizationTimeOutInMinutes)
-            {
-                var millisecondsTimeOut = jwtAuthorizationTimeOutInMinutes * 60;
-
-                return Math.Round(GetUnixTimestamp() + millisecondsTimeOut);
-            }
-
-            private static DateTime _unixEpoch()
-            {
-                return new DateTime(1970, 1, 1).ToLocalTime();
-            }
-
-            public static double GetUnixTimestamp()
-            {
-                return Math.Round(DateTime.UtcNow.Subtract(_unixEpoch()).TotalSeconds);
             }
         }
 

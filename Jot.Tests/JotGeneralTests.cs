@@ -4,12 +4,16 @@ using System.Linq;
 using System.Threading;
 using Jot.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Shouldly;
+using Jot.Time;
 
 namespace Jot.Tests
 {
     [TestClass]
     public class JotGeneralTests
     {
+        private UnixTimeProvider _timeProvider => new UnixTimeProvider(new TimeProvider());
+
         [TestMethod]
         public void CreateClaimWithNoPayload()
         {
@@ -46,16 +50,19 @@ namespace Jot.Tests
         [TestMethod]
         public void CheckDefaultCreationValues()
         {
-            var jot = new JotProvider();
+            var provider = new JotProvider();
 
-            var token = jot.Create();
+            var token = provider.Create();
 
             var exp = token.GetClaim<double>("exp");
             var iat = token.GetClaim<double>("iat");
             var jti = token.GetClaim<Guid>("jti");
             var nbf = token.GetClaim<double>("nbf");
 
-            Assert.IsTrue(exp > 0 && iat > 0 && nbf > 0 && jti != Guid.Empty);
+            iat.ShouldBeGreaterThan(0);
+            nbf.ShouldBeGreaterThan(0);
+            exp.ShouldBeGreaterThan(0);
+            jti.ShouldNotBe(Guid.Empty);
         }
 
         [TestMethod]
@@ -102,15 +109,17 @@ namespace Jot.Tests
         {
             var jot = new JotProvider();
 
+            var unixTimestamp = _timeProvider.GetUnixTimestamp();
+
             var payload = new Dictionary<string, object>
             {
-                {"iat", UnixDateServices.GetUnixTimestamp()},
-                {"exp", UnixDateServices.GetUnixTimestamp(30)},
+                {"iat", unixTimestamp},
+                {"exp", unixTimestamp + 30 * 60},
                 {"rol", "Test"},
                 {"jti", Guid.Empty},
                 {"iss", "Test"},
                 {"aud", ""},
-                {"nbf", (UnixDateServices.GetUnixTimestamp(0) + 10000)},
+                {"nbf", (unixTimestamp + 10000)},
                 {"sub", ""},
                 {"usr", ""}
             };
@@ -131,14 +140,14 @@ namespace Jot.Tests
 
             var payload = new Dictionary<string, object>
             {
-                {"iat", UnixDateServices.GetUnixTimestamp()},
-                {"exp", UnixDateServices.GetUnixTimestamp(30)},
+                {"iat", _timeProvider.GetUnixTimestamp()},
+                {"exp", _timeProvider.GetUnixTimestamp(30)},
                 {"rol", "Test"},
                 {"jti", Guid.Empty},
                 {"iss", "Test"},
                 {"aud", ""},
+                {"nbf", (_timeProvider.GetUnixTimestamp(0))},
                 {"sub", ""},
-                {"usr", ""}
             };
 
             var token = jot.Create(payload);
@@ -189,7 +198,7 @@ namespace Jot.Tests
 
             var token = jot.Create();
 
-            token.SetClaim(JotDefaultClaims.IAT, UnixDateServices.GetUnixTimestamp(600));
+            token.SetClaim(JotDefaultClaims.IAT, _timeProvider.GetUnixTimestamp(600));
 
             var jwt = jot.Encode(token);
 
@@ -205,7 +214,7 @@ namespace Jot.Tests
 
             var token = jot.Create();
 
-            token.SetClaim(JotDefaultClaims.IAT, UnixDateServices.GetUnixTimestamp(600));
+            token.SetClaim(JotDefaultClaims.IAT, _timeProvider.GetUnixTimestamp(600));
 
             var validationContainer = new JotValidationContainer();
 
