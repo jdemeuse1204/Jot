@@ -12,6 +12,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web.Script.Serialization;
+using Jot.Time;
 
 namespace Jot
 {
@@ -470,7 +471,7 @@ namespace Jot
 
             #endregion
 
-            public JwtToken(ITimeProvider timeProvider, int jwtTimeOut)
+            public JwtToken(IUnixTimeProvider timeProvider, int jwtTimeOut)
             {
                 _claims = new Dictionary<string, object>
                 {
@@ -496,7 +497,7 @@ namespace Jot
             /// Initializes a new instance of the <see cref="JwtToken"/> class.
             /// </summary>
             /// <param name="jwtTimeOut">The JWT time out in minutes.</param>
-            public JwtToken(int jwtTimeOut) : this(new TimeProvider(), jwtTimeOut)
+            public JwtToken(int jwtTimeOut) : this(new UnixTimeProvider(), jwtTimeOut)
             {
             }
 

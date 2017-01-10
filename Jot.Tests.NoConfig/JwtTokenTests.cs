@@ -1,4 +1,5 @@
 ﻿using FakeItEasy;
+using Jot.Time;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Shouldly;
 
@@ -16,9 +17,9 @@ namespace Jot.Tests.NoConfig
             // Assert
             Assert.IsNotNull(sut);
 
-            var issuedAt = sut.GetClaim<int>("iat");
-            var expires = sut.GetClaim<int>("exp");
-            var notBefore = sut.GetClaim<int>("nbf");
+            var issuedAt = sut.GetClaim<long>("iat");
+            var expires = sut.GetClaim<long>("exp");
+            var notBefore = sut.GetClaim<long>("nbf");
 
             issuedAt.ShouldNotBe(0);
             issuedAt.ShouldBe(notBefore);
@@ -34,9 +35,9 @@ namespace Jot.Tests.NoConfig
             // Assert
             Assert.IsNotNull(sut);
 
-            var issuedAt = sut.GetClaim<int>("iat");
-            var expires = sut.GetClaim<int>("exp");
-            var notBefore = sut.GetClaim<int>("nbf");
+            var issuedAt = sut.GetClaim<long>("iat");
+            var expires = sut.GetClaim<long>("exp");
+            var notBefore = sut.GetClaim<long>("nbf");
 
             issuedAt.ShouldNotBe(0);
             issuedAt.ShouldBe(notBefore);
@@ -48,7 +49,7 @@ namespace Jot.Tests.NoConfig
         public void Create_NoTimeout_AllEpochTimeBasedOnProvider()
         {
             // Arrange
-            var timeProvider = A.Fake<ITimeProvider>();
+            var timeProvider = A.Fake<IUnixTimeProvider>();
             var epochTimeProvided = 12000;
             A.CallTo(() => timeProvider.GetUnixTimestamp()).Returns(epochTimeProvided);
             A.CallTo(() => timeProvider.GetUnixTimestamp(0)).Returns(epochTimeProvided);
@@ -61,9 +62,9 @@ namespace Jot.Tests.NoConfig
             A.CallTo(() => timeProvider.GetUnixTimestamp(0)).MustHaveHappened(Repeated.Exactly.Once);
             Assert.IsNotNull(sut);
 
-            var issuedAt = sut.GetClaim<int>("iat");
-            var expires = sut.GetClaim<int>("exp");
-            var notBefore = sut.GetClaim<int>("nbf");
+            var issuedAt = sut.GetClaim<long>("iat");
+            var expires = sut.GetClaim<long>("exp");
+            var notBefore = sut.GetClaim<long>("nbf");
 
             issuedAt.ShouldBe(epochTimeProvided);
             issuedAt.ShouldBe(notBefore);

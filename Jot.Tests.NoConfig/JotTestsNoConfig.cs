@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Linq;
+using Shouldly;
 
 namespace Jot.Tests.NoConfig
 {
@@ -56,7 +57,10 @@ namespace Jot.Tests.NoConfig
             var jti = token.GetClaim<Guid>("jti");
             var nbf = token.GetClaim<double>("nbf");
 
-            Assert.IsTrue(exp > 0 && iat > 0 && nbf > 0 && jti != Guid.Empty);
+            iat.ShouldBeGreaterThan(0);
+            nbf.ShouldBeGreaterThan(0);
+            exp.ShouldBeGreaterThan(0);
+            jti.ShouldNotBe(Guid.Empty);
         }
 
         [TestMethod]

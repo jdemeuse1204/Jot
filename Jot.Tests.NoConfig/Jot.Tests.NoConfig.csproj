@@ -59,9 +59,9 @@
   </Choose>
   <ItemGroup>
     <Compile Include="JotTestsNoConfig.cs" />
-    <Compile Include="JwtTokenProviderTests.cs" />
     <Compile Include="JwtTokenTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="UnixTimeProviderTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Jot\Jot.csproj">
