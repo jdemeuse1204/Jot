@@ -255,15 +255,16 @@ Config file
 # Token Verification
 
 TokenValidationResult
--NotBeforeFailed,
--TokenExpired,
--TokenNotCorrectlyFormed,
--SignatureNotValid,
--OnTokenValidateFailed,
--OnJtiValidateFailed,
--CustomCheckFailed,
--CreatedTimeCheckFailed,
--Passed
+
+ + NotBeforeFailed,
+ + TokenExpired,
+ + TokenNotCorrectlyFormed,
+ + SignatureNotValid,
+ + OnTokenValidateFailed,
+ + OnJtiValidateFailed,
+ + CustomCheckFailed,
+ + CreatedTimeCheckFailed,
+ + Passed
 
 1.  Default Verificaiton<br/><br/>
 Claims Verified By Default:
