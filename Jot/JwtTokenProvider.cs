@@ -467,20 +467,20 @@ namespace Jot
             private const string NBF = "nbf"; // Not Before
             private const string USR = "usr"; // User
             private const string SUB = "sub"; // Subject
-            
+
             #endregion
 
-            public JwtToken(int jwtTimeOut)
+            public JwtToken(ITimeProvider timeProvider, int jwtTimeOut)
             {
                 _claims = new Dictionary<string, object>
                 {
-                    {IAT, UnixDateServices.GetUnixTimestamp()},
-                    {EXP, UnixDateServices.GetUnixTimestamp(jwtTimeOut)},
+                    {IAT, timeProvider.GetUnixTimestamp()},
+                    {EXP, timeProvider.GetUnixTimestamp(jwtTimeOut)},
                     {ROL, ""},
                     {JTI, Guid.NewGuid()},
                     {ISS, ""},
                     {AUD, ""},
-                    {NBF, UnixDateServices.GetUnixTimestamp()},
+                    {NBF, timeProvider.GetUnixTimestamp()},
                     {SUB, ""},
                     {USR, ""}
                 };
@@ -490,6 +490,14 @@ namespace Jot
                     {ALG, ""},
                     {TYP, "JWT"}
                 };
+            }
+
+            /// <summary>
+            /// Initializes a new instance of the <see cref="JwtToken"/> class.
+            /// </summary>
+            /// <param name="jwtTimeOut">The JWT time out in minutes.</param>
+            public JwtToken(int jwtTimeOut) : this(new TimeProvider(), jwtTimeOut)
+            {
             }
 
             public JwtToken(Dictionary<string, string> header, Dictionary<string, object> claims)
@@ -877,6 +885,11 @@ namespace Jot
 
         private static class UnixDateServices
         {
+            /// <summary>
+            /// Gets the unix timestamp.
+            /// </summary>
+            /// <param name="jwtAuthorizationTimeOut">The JWT authorization time out in minutes.</param>
+            /// <returns></returns>
             public static double GetUnixTimestamp(double jwtAuthorizationTimeOut)
             {
                 var millisecondsTimeOut = ((jwtAuthorizationTimeOut*60)*1000);
