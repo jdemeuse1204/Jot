@@ -26,5 +26,9 @@ namespace Jot
         void SetHeader(string headerKey, object value);
 
         bool HeaderExists(string headerKey);
+
+        bool TryGetClaim(string claimKey, out object value);
+
+        bool TryGetHeader(string headerKey, out object value);
     }
 }

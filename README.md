@@ -69,13 +69,11 @@ public string GetNewToken()
 Here is a list of all the default claims in Jot (https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32#section-4.1.4)
 - iat => "Issued At"
 - exp => "Expiration"
-- rol => "Role"
 - jti => "Claim Id"
 - iss => "Issuer"
 - aud => "Audience"
 - nbf => "Not Before"
 - sub => "Subject"
-- usr => "User"
 
 1. SetClaim method
 
@@ -139,13 +137,11 @@ public string AddClaimUsingCreateMethodParameters()
   {
       {"iat", 0},
       {"exp", 0},
-      {"rol", "sdf"},
       {"jti", ""},
       {"iss", ""},
       {"aud", ""},
       {"nbf", ""},
-      {"sub", ""},
-      {"usr", ""}
+      {"sub", ""}
   };
   
   var token = jot.Create(payload);

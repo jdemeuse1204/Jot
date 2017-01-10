@@ -21,11 +21,6 @@ namespace Jot
         public const string EXP = "exp";
 
         /// <summary>
-        /// Role
-        /// </summary>
-        public const string ROL = "rol";
-
-        /// <summary>
         /// Token Id
         /// </summary>
         public const string JTI = "jti"; 
@@ -44,11 +39,6 @@ namespace Jot
         /// Not Before
         /// </summary>
         public const string NBF = "nbf";
-
-        /// <summary>
-        /// User
-        /// </summary>
-        public const string USR = "usr";
 
         /// <summary>
         /// Subject

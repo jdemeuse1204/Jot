@@ -514,13 +514,11 @@ namespace Jot
                 {
                     {JotDefaultClaims.IAT, timeProvider.GetUnixTimestamp()},
                     {JotDefaultClaims.EXP, timeProvider.GetUnixTimestamp(jwtTimeOut)},
-                    {JotDefaultClaims.ROL, ""},
                     {JotDefaultClaims.JTI, Guid.NewGuid()},
                     {JotDefaultClaims.ISS, ""},
                     {JotDefaultClaims.AUD, ""},
                     {JotDefaultClaims.NBF, timeProvider.GetUnixTimestamp()},
-                    {JotDefaultClaims.SUB, ""},
-                    {JotDefaultClaims.USR, ""}
+                    {JotDefaultClaims.SUB, ""}
                 };
 
                 _header = new Dictionary<string, object>
@@ -597,6 +595,32 @@ namespace Jot
             public Dictionary<string, object> GetClaims()
             {
                 return _claims;
+            }
+
+            public bool TryGetClaim(string claimKey, out object value)
+            {
+                value = null;
+
+                if (ClaimExists(claimKey))
+                {
+                    value = _claims[claimKey];
+                    return true;
+                }
+
+                return false;
+            }
+
+            public bool TryGetHeader(string headerKey, out object value)
+            {
+                value = null;
+
+                if (HeaderExists(headerKey))
+                {
+                    value = _header[headerKey];
+                    return true;
+                }
+
+                return false;
             }
         }
 
