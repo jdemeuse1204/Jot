@@ -366,5 +366,21 @@ namespace Jot.Tests
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }
+
+        [TestMethod]
+        public void MakeSureTimeProviderIsWorkingWhenInjectedIntoTheConstructor()
+        {
+            var jot = new JotProvider(_timeProvider);
+
+            var token = jot.Create();
+
+            var validationContainer = new JotValidationContainer();
+
+            var jwt = jot.Encode(token);
+
+            var validationResult = jot.Validate(jwt, validationContainer);
+
+            Assert.IsTrue(validationResult == TokenValidationResult.Passed);
+        }
     }
 }
