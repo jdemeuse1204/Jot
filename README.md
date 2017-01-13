@@ -20,6 +20,7 @@ Jot is very easy to get started, use nuget to add the reference to your project
 8.  Validating Custom Claims
 9.  Token TimeOut
 10.  Custom Headers
+11.  Custom Time Proivder
 
 #Token Creation
 
@@ -149,6 +150,37 @@ public string AddClaimUsingCreateMethodParameters()
   return jot.Encode(token);
 }
 ```
+# Custom Time Proivder
+The custom time provider in **Jot** allows the developer to change the date used when creating/validating a token.  Let's say you have a token created in the Eastern Time Zone, but you are actually validation the token in the Pacific Time Zone.  When validation is attempted, the nbf claim will be invalid because the token was created before the current time in the Pacific Time Zone.  To rememdy this, you can use a time provider for use when creating/validating tokens.  With the time provider you can adjust your time in any way you wish
+
+```C#
+using Jot.Time;
+
+public string UsingTheTimeProvider()
+{
+  // please note, assume this example uses the config
+  // for all configuration options
+  var timeProvider = new UnixTimeProvider(new TimeProvider());
+  
+  // create the Jot provider to deal with tokens
+  var jot = new JotProvider(timeProvider);
+  
+  var token = jot.Create();
+  
+  // add your claims here //
+
+  return jot.Encode(token);
+}
+
+// you will need to create your custom TimeProvider class, example below
+// How this works:  Return the Utc Date Time you wish to use for claim
+// creation and validation
+public class TimeProvider : ITimeProvider
+{
+    public DateTime UtcNow => DateTime.UtcNow;
+}
+```
+
 
 # Hash Options
 Please keep in mind **Jot** uses hashing, not encrypting.  Encryption is reversible, meaning it can be unencrypted.  Hashing is not reversible.
