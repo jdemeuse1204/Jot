@@ -12,6 +12,10 @@ namespace Jot
 {
     public class JotValidationContainer
     {
+        public delegate bool OnValidateCustom(object value);
+
+        public event OnValidateCustom OnValidateCustomClaim;
+
         public JotValidationContainer()
         {
             _customChecks = new Dictionary<string, object>();
@@ -40,6 +44,11 @@ namespace Jot
         public void AddCustomClaimVerification(string claimKey, object expectedValue)
         {
             _customChecks.Add(claimKey, expectedValue);
+        }
+
+        public void AddCustomClaimVerification(string claimKey, OnValidateCustom onValidateCustom)
+        {
+            _customChecks.Add(claimKey, onValidateCustom);
         }
 
         public Dictionary<string, object> GetCustomClaimVerifications()

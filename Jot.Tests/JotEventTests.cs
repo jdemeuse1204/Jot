@@ -273,5 +273,20 @@ namespace Jot.Tests
 
             Assert.AreEqual(result, TokenValidationResult.OnJtiValidateFailed);
         }
+
+        [TestMethod]
+        public void MakeSureCustomValidationEventsWork()
+        {
+            //var provider = new TestJwtTokenProvider();
+            //var validationContainer = new JotValidationContainer();
+
+            //validationContainer.SkipClaimVerification();
+            //validationContainer.AddCustomClaimVerification()
+
+
+            //var token = provider.Create();
+
+            //Assert.AreEqual(token.GetClaim<string>(JotDefaultClaims.ISS), "");
+        }
     }
 }
