@@ -2,7 +2,7 @@
 **Jot** is a .NET library for use with JSON Web Tokens (JWT).  Jot will take care of all your JWT creation, encryption(hashing), and verification for you.  **Jot** was made extremely flexible, if you want to use your own hash algorithm, serialization, or set custom claims it's all there for you.  What set's **Jot** apart from others is the ability to use **Ghost Claims**.  This feature helps guard against a JWT being decoded by someone you do not want decoding your JWT.  See below for an explanation on **Ghost Claims**.  **Jot** was built on .NET 4.0.
 
 ## Current Version
-1.0.0
+1.0.1
 
 ## Getting Started
 Jot is very easy to get started, use nuget to add the reference to your project
@@ -389,6 +389,8 @@ Before explaining **Ghost Claims**, you must understand the parts to a JSON Web 
 base64UrlEncode(claims),  secret)).  
 
 **Ghost Claims** are added to the claims before they are Base64Url encoded and become part of the signature.  **Ghost Claims** are not part of the normal claims segment, but only exist in the signature.  The server knows what the **Ghost Claims** are, but the Token does not know what they are.  This makes the token a lot harder to decrypt, because only your server knows what they **Ghost Claims** are.  Think of **Ghost Claims** like a second secret/key to your Token.  When the Token is validated, the **Ghost Claims** are factored into the signature, and must match the Token being validated.
+
+The great thing about **Ghost Claims** is that it allows your token to have private claims.  When your token is out in the wild, anyone can Base64Url decode your claims and see what is in them.  If you encrypt your token then you will not have this problem, if you do not encrypt your token, then claims can be seen by anyone after they are decoded.  This is why sensitive data should never be stored in the claims.  With **Ghost Claims** even when the claims are Base64Url decoded, your **Ghost Claims** are still private!
 
 ##Adding Ghost Claims
 The best way to use **Ghost Claims** is to inherit from JotProvider and add an handler to OnGetGhostClaims
