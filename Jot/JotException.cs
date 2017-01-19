@@ -1,5 +1,5 @@
 ﻿/*
- * Jot v1.0
+ * Jot v1.1
  * License: The MIT License (MIT)
  * Code: https://github.com/jdemeuse1204/Jot
  * Email: james.demeuse@gmail.com
