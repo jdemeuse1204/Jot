@@ -276,7 +276,7 @@ namespace Jot.Tests
             var provider = new JotProvider();
             var validationContainer = new JotValidationContainer();
             var wasCustomValidationRun = false;
-
+             
             validationContainer.AddCustomClaimVerification("tst", (claimValue) => 
             {
                 wasCustomValidationRun = true;
@@ -284,7 +284,6 @@ namespace Jot.Tests
 
                 return tst == 100;
             });
-
 
             var token = provider.Create();
 
@@ -338,7 +337,7 @@ namespace Jot.Tests
         }
 
         [TestMethod]
-        public void SkipDefaultProcessingAndAddCustomProcessingThatWasNotRun()
+        public void SkipDefaultAndCustomProcessingAndAddCustomProcessingThatShouldBeSkipped()
         {
             var provider = new JotProvider();
             var timeProvider = new UnixTimeProvider();

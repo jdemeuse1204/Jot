@@ -430,6 +430,10 @@ namespace Jot
             var isIatValid = true;
             var isExpirationValid = true;
             var defaultChecks = new List<string> { JotDefaultClaims.NBF, JotDefaultClaims.IAT, JotDefaultClaims.EXP, JotDefaultClaims.JTI };
+
+            // check to see if any custom checks are default checks,
+            // if so we want to skip custom processing, because we will have processed them in
+            // JotValidator.Is........
             var checksRun = customChecks.Select(w => w.Key).Where(w => defaultChecks.Contains(w)).ToList();
 
             // Not Before should not be before current time
@@ -513,7 +517,7 @@ namespace Jot
 
             public static bool IsJtiValid(Guid claimValue, JotValidationContainer validationContainer, OnJtiValidateHandler onJtiValidate, IJotToken token)
             {
-                var customValidator = _getCustomClaimVerification(validationContainer, JotDefaultClaims.NBF);
+                var customValidator = _getCustomClaimVerification(validationContainer, JotDefaultClaims.JTI);
 
                 if (customValidator != null)
                 {
