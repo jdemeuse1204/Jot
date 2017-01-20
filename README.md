@@ -5,9 +5,9 @@
 1.1
 
 ## Version Changes
-1.0 - Initial Version
-1.0.1 - Resolved issues opened on github
-1.1 - Changed claim validation.  Adding custom validation now overrides default validation.  Skipping any validation will also skip custom validation.  Changed the errors for custom validation.  If custom validation is added for the **nbf** claim, the error will be an **nbf** error instead of a custom validation error.
+ + 1.0 - Initial Version
+ + 1.0.1 - Resolved issues opened on github
+ + 1.1 - Changed claim validation.  Adding custom validation now overrides default validation.  Skipping any validation will also skip custom validation.  Changed the errors for custom validation.  If custom validation is added for the **nbf** claim, the error will be an **nbf** error instead of a custom validation error.
 
 ## Getting Started
 Jot is very easy to get started, use nuget to add the reference to your project
