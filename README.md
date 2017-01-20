@@ -325,6 +325,8 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 2.  Using the JotValidationContainer
 The JotValidationContainer lets the user customize the tokens verification
 
+NOTE:  Custom claim verification will override any default verification done by **Jot*
+
 ```C#
 public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
 {
@@ -345,7 +347,17 @@ public TokenValidationResult DefaultVerification(string encodedTokenFromWebPage)
   
   // here we are adding a custom verificaiton to the Issuer (iss) claim
   // the claim must equal github.com
+  // NOTE: Adding custom claim verification will override any default
+  // verification.  See above for claims they are verified by default
   validationContainer.AddCustomClaimVerification("iss", "github.com");
+  
+  // OR
+  
+  // You can also do this
+  validationContainer.AddCustomClaimVerification("iss", (claimKey) => 
+  {
+    return claimKey == "github.com";
+  });
   
   // When validate is called, the above validations will be run
   // note, you must pass the validationContainer into the validate function
