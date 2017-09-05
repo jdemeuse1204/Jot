@@ -262,6 +262,7 @@ namespace Jot.Tests
         {
             var jti = Guid.NewGuid();
             var jot = new TestJtiValidationClaimTokenProvider(jti);
+            var validator = new TestJtiValidationClaimTokenValidator(jti);
 
             var token = jot.Create();
 
@@ -269,7 +270,7 @@ namespace Jot.Tests
 
             var encodedToken = jot.Encode(token);
 
-            var result = jot.Validate<TestJtiValidationClaimTokenValidator>(encodedToken);
+            var result = jot.Validate(encodedToken, validator);
 
             Assert.AreEqual(result, TokenValidationResult.Passed);
         }
@@ -279,6 +280,7 @@ namespace Jot.Tests
         {
             var jti = Guid.NewGuid();
             var jot = new TestJtiValidationClaimTokenProvider(jti);
+            var validator = new TestJtiValidationClaimTokenValidator(jti);
 
             var token = jot.Create();
 
@@ -286,7 +288,7 @@ namespace Jot.Tests
 
             var encodedToken = jot.Encode(token);
 
-            var result = jot.Validate<TestJtiValidationClaimTokenValidator>(encodedToken);
+            var result = jot.Validate(encodedToken, validator);
 
             Assert.AreEqual(result, TokenValidationResult.JtiValidateFailed);
         }

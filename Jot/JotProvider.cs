@@ -578,7 +578,7 @@ namespace Jot
                 var claimValue = _claims[claimKey];
                 var claimValueAsString = claimValue == null ? "" : claimValue.ToString();
 
-                if (typeof(T) == typeof(string) == string.Equals(claimValue, "")) return (T)Convert.ChangeType("", typeof(T));
+                if (typeof(T) == typeof(string) && string.Equals(claimValue, "")) return (T)Convert.ChangeType("", typeof(T));
 
                 if (string.IsNullOrEmpty(claimValueAsString) || string.IsNullOrWhiteSpace(claimValueAsString))
                 {
