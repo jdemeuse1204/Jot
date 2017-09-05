@@ -15,9 +15,10 @@ namespace Jot
         TokenNotCorrectlyFormed,
         SignatureNotValid,
         OnTokenValidateFailed,
-        OnJtiValidateFailed,
+        JtiValidateFailed,
         CustomCheckFailed,
         CreatedTimeCheckFailed,
-        Passed
+        Passed,
+        ClaimMissing
     }
 }

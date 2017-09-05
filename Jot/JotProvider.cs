@@ -7,6 +7,7 @@
  */
 
 using Jot.Time;
+using Jot.ValidationContainers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -60,22 +61,9 @@ namespace Jot
         #endregion
 
         #region Events
-        public delegate bool OnJtiValidateHandler(Guid jti, IJotToken token);
-
-        public event OnJtiValidateHandler OnJtiValidate;
-
-
-
         public delegate Dictionary<string, object> OnGetGhostClaimsHandler();
 
         public event OnGetGhostClaimsHandler OnGetGhostClaims;
-
-
-
-        public delegate bool OnTokenValidateHandler(IJotToken token);
-
-        public event OnTokenValidateHandler OnTokenValidate;
-
 
 
         public delegate void OnTokenCreateHandler(IJotToken token);
@@ -99,8 +87,6 @@ namespace Jot
         public event OnHashHandler OnHash;
 
         public delegate byte[] OnHashHandler(byte[] toEncrypt, string secret);
-
-
         #endregion
 
         #region Properties and Fields
@@ -112,7 +98,7 @@ namespace Jot
 
         public readonly bool UseGhostClaims;
 
-        private readonly IDictionary<HashAlgorithm, Func<string, byte[], string>> _hashAlgorithms = new Dictionary <HashAlgorithm, Func<string, byte[], string>>
+        private readonly IDictionary<HashAlgorithm, Func<string, byte[], string>> _hashAlgorithms = new Dictionary<HashAlgorithm, Func<string, byte[], string>>
         {
             {
                 HashAlgorithm.HS256, (key, value) =>
@@ -188,7 +174,7 @@ namespace Jot
         {
             if (section == null) throw new JotException("Please configure Jot on the configuration file if you use the parameterless constructor.");
 
-           section.CheckConfigurationIsValid();
+            section.CheckConfigurationIsValid();
         }
 
         private JotAuthConfigurationSection _getConfigurationSection()
@@ -385,22 +371,34 @@ namespace Jot
         /// <returns></returns>
         public TokenValidationResult Validate(string encodedToken)
         {
-            return Validate(encodedToken, new JotValidationContainer());
+            return Validate<JotDefaultValidationContainer>(encodedToken);
         }
 
-        public TokenValidationResult Validate(string encodedToken, JotValidationContainer validationContainer)
+        public TokenValidationResult Validate(string encodedToken, string secret)
+        {
+            return Validate<JotDefaultValidationContainer>(encodedToken, secret);
+        }
+
+        public TokenValidationResult Validate<T>(string encodedToken) where T : IValidationContainer
+        {
+            var section = _getConfigurationSection();
+
+            return Validate(encodedToken, section.GetEncryptionSecret(), Activator.CreateInstance<T>());
+        }
+
+        public TokenValidationResult Validate<T>(string encodedToken, string secret) where T : IValidationContainer
+        {
+            return Validate(encodedToken, secret, Activator.CreateInstance<T>());
+        }
+
+        public TokenValidationResult Validate(string encodedToken, IValidationContainer validationContainer)
         {
             var section = _getConfigurationSection();
 
             return Validate(encodedToken, section.GetEncryptionSecret(), validationContainer);
         }
 
-        public TokenValidationResult Validate(string encodedToken, string secret)
-        {
-            return Validate(encodedToken, secret, new JotValidationContainer());
-        }
-
-        public TokenValidationResult Validate(string encodedToken, string secret, JotValidationContainer validationContainer)
+        public TokenValidationResult Validate(string encodedToken, string secret, IValidationContainer validationContainer)
         {
             var token = Decode(encodedToken);
             var jwt = token as JwtToken;
@@ -416,168 +414,59 @@ namespace Jot
 
             if (!string.Equals(signatureFromToken, recreatedSignedSignature)) return TokenValidationResult.SignatureNotValid;
 
-            var jti = token.ClaimExists(JotDefaultClaims.JTI) ? jwt.GetClaim<Guid>(JotDefaultClaims.JTI) : Guid.Empty;
-            var nbf = jwt.GetClaim<double>(JotDefaultClaims.NBF);
-            var exp = jwt.GetClaim<double>(JotDefaultClaims.EXP);
-            var iat = jwt.GetClaim<double>(JotDefaultClaims.IAT);
+            // build the validator
+            validationContainer.Build();
 
             // get all of the custom checks
-            var customChecks = validationContainer.GetCustomClaimVerifications();
+            var allRequiredChecks = validationContainer.GetClaimVerifications();
+            var allOptionalChecks = validationContainer.GetClaimOptionalVerifications();
 
-            // check nbf
-            var currentUnixTime = _timeProvider.GetUnixTimestamp();
-            var isNbfValid = true;
-            var isIatValid = true;
-            var isExpirationValid = true;
-            var defaultChecks = new List<string> { JotDefaultClaims.NBF, JotDefaultClaims.IAT, JotDefaultClaims.EXP, JotDefaultClaims.JTI };
-
-            // check to see if any custom checks are default checks,
-            // if so we want to skip custom processing, because we will have processed them in
-            // JotValidator.Is........
-            var checksRun = customChecks.Select(w => w.Key).Where(w => defaultChecks.Contains(w)).ToList();
-
-            // Not Before should not be before current time
-            if (JotValidator.ShouldValidateClaim(validationContainer, JotDefaultClaims.NBF))
-            {
-                // run custom validation in default location so TokenValidationResult provides more value
-                if (!checksRun.Contains(JotDefaultClaims.NBF)) checksRun.Add(JotDefaultClaims.NBF);
-                isNbfValid = JotValidator.IsNbfValid(nbf, currentUnixTime, validationContainer);
-            }
-
-            if (JotValidator.ShouldValidateClaim(validationContainer, JotDefaultClaims.IAT))
-            {
-                // run custom validation in default location so TokenValidationResult provides more value
-                if (!checksRun.Contains(JotDefaultClaims.IAT)) checksRun.Add(JotDefaultClaims.IAT);
-                isIatValid = JotValidator.IsIatValid(iat, currentUnixTime, validationContainer);
-            }
-
-            if (!isNbfValid) return TokenValidationResult.NotBeforeFailed;
-
-            if (!isIatValid) return TokenValidationResult.CreatedTimeCheckFailed;
-
-            // check expiration date
-            if (JotValidator.ShouldValidateClaim(validationContainer, JotDefaultClaims.EXP))
-            {
-                // run custom validation in default location so TokenValidationResult provides more value
-                if (!checksRun.Contains(JotDefaultClaims.EXP)) checksRun.Add(JotDefaultClaims.EXP);
-                isExpirationValid = JotValidator.IsExpValid(exp, currentUnixTime, validationContainer);
-            }
-
-            if (!isExpirationValid) return TokenValidationResult.TokenExpired;
-
+            var onValidate = validationContainer.GetOnValidate();
             // do before jti, jti should always be last
-            if (OnTokenValidate != null && !OnTokenValidate(token)) return TokenValidationResult.OnTokenValidateFailed;
-
-            // check the custom handler after everything.  
-            // potentially saves in processing time if the claim is expired
-            if (JotValidator.ShouldValidateClaim(validationContainer, JotDefaultClaims.JTI))
+            if (onValidate != null)
             {
-                // run custom validation in default location so TokenValidationResult provides more value
-                if (!checksRun.Contains(JotDefaultClaims.JTI)) checksRun.Add(JotDefaultClaims.JTI);
-                if (!JotValidator.IsJtiValid(jti, validationContainer, OnJtiValidate, token)) return TokenValidationResult.OnJtiValidateFailed;
+                var result = onValidate(token);
+
+                if(result != TokenValidationResult.Passed) { return result; }
             }
 
-            if (!validationContainer.AnyCustomChecks()) return TokenValidationResult.Passed;
-            
-            // perform custom checks
-            foreach (var item in customChecks.Where(w => !checksRun.Contains(w.Key)))
+            // perform all required checks
+            var requiredChecksResult = ExecuteChecks(allRequiredChecks, token, false);
+
+            if (requiredChecksResult != TokenValidationResult.Passed) { return requiredChecksResult; }
+
+            // perform all optional checks
+            return ExecuteChecks(allOptionalChecks, token, false);
+        }
+
+        private TokenValidationResult ExecuteChecks(Dictionary<string, Func<object, TokenValidationResult>> checks, IJotToken token, bool areOptionalClaims)
+        {
+            if (checks == null) return TokenValidationResult.Passed;
+
+            foreach (var item in checks)
             {
-                var onValidateClaim = item.Value as JotValidationContainer.OnValidateCustom;
-                var claim = jwt.GetClaim(item.Key);
+                if (!token.ClaimExists(item.Key))
+                {
+                    if (areOptionalClaims) { continue; }
+
+                    return TokenValidationResult.ClaimMissing;
+                }
+
+                var onValidateClaim = item.Value;
+                var claimValue = token.GetClaim(item.Key);
 
                 if (onValidateClaim != null)
                 {
-                    if (!onValidateClaim(claim)) return TokenValidationResult.CustomCheckFailed;
+                    var result = onValidateClaim(claimValue);
+                    if (result != TokenValidationResult.Passed) return result;
+
                     continue;
                 }
 
-                if (!object.Equals(claim, item.Value)) return TokenValidationResult.CustomCheckFailed;
+                if (!Equals(claimValue, item.Value)) return TokenValidationResult.CustomCheckFailed;
             }
 
             return TokenValidationResult.Passed;
-        }
-
-        private static class JotValidator
-        {
-            public static bool IsNbfValid(double claimValue, double currentUnixTime, JotValidationContainer validationContainer)
-            {
-                var customValidator = _getCustomClaimVerification(validationContainer, JotDefaultClaims.NBF);
-
-                if (customValidator != null)
-                {
-                    var validator = customValidator as JotValidationContainer.OnValidateCustom;
-
-                    return validator != null ? validator(claimValue) : claimValue == Convert.ToDouble(validator);
-                }
-                else
-                {
-                    return claimValue <= currentUnixTime;
-                }
-            }
-
-            public static bool IsJtiValid(Guid claimValue, JotValidationContainer validationContainer, OnJtiValidateHandler onJtiValidate, IJotToken token)
-            {
-                var customValidator = _getCustomClaimVerification(validationContainer, JotDefaultClaims.JTI);
-
-                if (customValidator != null)
-                {
-                    var validator = customValidator as JotValidationContainer.OnValidateCustom;
-
-                    return validator != null ? validator(claimValue) : claimValue == Guid.Parse(claimValue.ToString());
-                }
-                else
-                {
-                    return onJtiValidate == null ? true : onJtiValidate(claimValue, token);
-                }
-            }
-
-            public static bool IsIatValid(double claimValue, double currentUnixTime, JotValidationContainer validationContainer)
-            {
-                var customValidator = _getCustomClaimVerification(validationContainer, JotDefaultClaims.IAT);
-
-                if (customValidator != null)
-                {
-                    var validator = customValidator as JotValidationContainer.OnValidateCustom;
-
-                    return validator != null ? validator(claimValue) : claimValue == Convert.ToDouble(validator);
-                }
-                else
-                {
-                    return Math.Abs(claimValue) > 0 && claimValue <= currentUnixTime;
-                }
-            }
-
-            public static bool IsExpValid(double claimValue, double currentUnixTime, JotValidationContainer validationContainer)
-            {
-                var customValidator = _getCustomClaimVerification(validationContainer, JotDefaultClaims.EXP);
-
-                if (customValidator != null)
-                {
-                    var validator = customValidator as JotValidationContainer.OnValidateCustom;
-
-                    return validator != null ? validator(claimValue) : claimValue == Convert.ToDouble(validator);
-                }
-                else
-                {
-                    return currentUnixTime < claimValue;
-                }
-            }
-
-            public static bool ShouldValidateClaim(JotValidationContainer validationContainer, string claimKey)
-            {
-                var claimsToSkip = validationContainer.GetSkipClaimVerificaitons();
-
-                return !claimsToSkip.Contains(claimKey);
-            }
-
-            private static object _getCustomClaimVerification(JotValidationContainer validationContainer, string claimKey)
-            {
-                var customValidators = validationContainer.GetCustomClaimVerifications();
-
-                if (customValidators == null || !customValidators.ContainsKey(claimKey)) return null;
-
-                return customValidators[claimKey];
-            }
         }
         #endregion
 
@@ -660,7 +549,7 @@ namespace Jot
 
             public T GetHeader<T>(string headerKey)
             {
-                return typeof(T) == typeof(Guid) ? (T) (dynamic) Guid.Parse(_header[headerKey].ToString()) : (T) Convert.ChangeType(_header[headerKey], typeof(T));
+                return typeof(T) == typeof(Guid) ? (T)(dynamic)Guid.Parse(_header[headerKey].ToString()) : (T)Convert.ChangeType(_header[headerKey], typeof(T));
             }
 
             public object GetHeader(string headerKey)
@@ -686,7 +575,17 @@ namespace Jot
 
             public T GetClaim<T>(string claimKey)
             {
-                return typeof(T) == typeof(Guid) ? (T) (dynamic) Guid.Parse(_claims[claimKey].ToString()) : (T) Convert.ChangeType(_claims[claimKey], typeof(T));
+                var claimValue = _claims[claimKey];
+                var claimValueAsString = claimValue == null ? "" : claimValue.ToString();
+
+                if (typeof(T) == typeof(string) == string.Equals(claimValue, "")) return (T)Convert.ChangeType("", typeof(T));
+
+                if (string.IsNullOrEmpty(claimValueAsString) || string.IsNullOrWhiteSpace(claimValueAsString))
+                {
+                    return default(T);
+                }
+
+                return typeof(T) == typeof(Guid) ? (T)(dynamic)Guid.Parse(_claims[claimKey].ToString()) : (T)Convert.ChangeType(_claims[claimKey], typeof(T));
             }
 
             public object GetClaim(string claimKey)
@@ -752,7 +651,7 @@ namespace Jot
                 var s = payload;
                 s = s.Replace('-', '+'); // 62nd char of encoding
                 s = s.Replace('_', '/'); // 63rd char of encoding
-                switch (s.Length%4) // Pad with trailing '='s
+                switch (s.Length % 4) // Pad with trailing '='s
                 {
                     case 0:
                         break; // No pad chars in this case

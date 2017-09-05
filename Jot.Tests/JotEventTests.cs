@@ -7,6 +7,8 @@ using Jot.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json;
 using Jot.Time;
+using Jot.ValidationContainers;
+using System.Threading;
 
 namespace Jot.Tests
 {
@@ -44,25 +46,26 @@ namespace Jot.Tests
         }
     }
 
-    public class TestValidateJwtTokenProvider : JotProvider
+    public class TestValidateJwtTokenValidator : ValidationContainerBase, IValidationContainer
     {
-        public TestValidateJwtTokenProvider()
+        public TestValidateJwtTokenValidator() : base(new UnixTimeProvider())
         {
-            OnTokenValidate += OnOnTokenValidate;
         }
 
-        private bool OnOnTokenValidate(IJotToken token)
+        public void Build()
         {
-            var claimValue = token.GetClaim("tst");
+            OnValidate = (token) =>
+            {
+                var claimValue = token.GetClaim("tst");
 
-            return object.Equals(claimValue, "win");
+                return Equals(claimValue, "win") == false ? TokenValidationResult.OnTokenValidateFailed : TokenValidationResult.Passed;
+            };
         }
     }
 
     public class TestGhostClaimTokenProvider : JotProvider
     {
-        public TestGhostClaimTokenProvider()
-                        : base(30, HashAlgorithm.HS512, true)
+        public TestGhostClaimTokenProvider() : base(30, HashAlgorithm.HS512, true)
         {
             OnGetGhostClaims += OnOnGetGhostClaims;
         }
@@ -93,6 +96,24 @@ namespace Jot.Tests
         }
     }
 
+    public class TestJtiValidationClaimTokenValidator : ValidationContainerBase, IValidationContainer
+    {
+        private readonly Guid _jti;
+
+        public void Build()
+        {
+            Add(JotDefaultClaims.JTI, (value) =>
+            {
+                return Guid.Parse(value.ToString()) == _jti ? TokenValidationResult.Passed : TokenValidationResult.JtiValidateFailed;
+            });
+        }
+
+        public TestJtiValidationClaimTokenValidator(Guid jti) : base(new UnixTimeProvider())
+        {
+            _jti = jti;
+        }
+    }
+
     public class TestJtiValidationClaimTokenProvider : JotProvider
     {
         private readonly Guid _jti;
@@ -100,13 +121,7 @@ namespace Jot.Tests
         public TestJtiValidationClaimTokenProvider(Guid jti)
                         : base(30, HashAlgorithm.HS512, false)
         {
-            this.OnJtiValidate += OnOnJtiValidate;
             _jti = jti;
-        }
-
-        private bool OnOnJtiValidate(Guid jti, IJotToken token)
-        {
-            return _jti == jti;
         }
     }
     #endregion
@@ -131,6 +146,8 @@ namespace Jot.Tests
 
             var token = jot.Create();
 
+            Thread.Sleep(1000);
+
             var encodedToken = jot.Encode(token);
 
             var result = jot.Validate(encodedToken);
@@ -144,6 +161,8 @@ namespace Jot.Tests
             var jot = new TestJwtTokenProvider();
 
             var token = jot.Create();
+
+            Thread.Sleep(1000);
 
             token.SetClaim(JotDefaultClaims.NBF, UnixDateServices.GetUnixTimestamp(1));
 
@@ -161,11 +180,13 @@ namespace Jot.Tests
 
             var token = jot.Create();
 
+            Thread.Sleep(1000);
+
             token.SetClaim("tst", "win");
 
-            var validationContainer = new JotValidationContainer();
+            var validationContainer = new JotDefaultValidationContainer();
 
-            validationContainer.AddCustomClaimVerification("tst", "tst");
+            validationContainer.Add("tst", "tst");
 
             var encodedToken = jot.Encode(token);
 
@@ -177,7 +198,7 @@ namespace Jot.Tests
         [TestMethod]
         public void MakeSureOnTokenValidateWorks()
         {
-            var jot = new TestValidateJwtTokenProvider();
+            var jot = new TestJwtTokenProvider();
 
             var token = jot.Create();
 
@@ -185,7 +206,7 @@ namespace Jot.Tests
 
             var encodedToken = jot.Encode(token);
 
-            var result = jot.Validate(encodedToken);
+            var result = jot.Validate<TestValidateJwtTokenValidator>(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.OnTokenValidateFailed);
         }
@@ -248,7 +269,7 @@ namespace Jot.Tests
 
             var encodedToken = jot.Encode(token);
 
-            var result = jot.Validate(encodedToken);
+            var result = jot.Validate<TestJtiValidationClaimTokenValidator>(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.Passed);
         }
@@ -265,24 +286,24 @@ namespace Jot.Tests
 
             var encodedToken = jot.Encode(token);
 
-            var result = jot.Validate(encodedToken);
+            var result = jot.Validate<TestJtiValidationClaimTokenValidator>(encodedToken);
 
-            Assert.AreEqual(result, TokenValidationResult.OnJtiValidateFailed);
+            Assert.AreEqual(result, TokenValidationResult.JtiValidateFailed);
         }
 
         [TestMethod]
         public void MakeSureCustomValidationEventsWork()
         {
             var provider = new JotProvider();
-            var validationContainer = new JotValidationContainer();
+            var validationContainer = new JotDefaultValidationContainer();
             var wasCustomValidationRun = false;
              
-            validationContainer.AddCustomClaimVerification("tst", (claimValue) => 
+            validationContainer.Add("tst", (claimValue) => 
             {
                 wasCustomValidationRun = true;
                 var tst = Convert.ToInt32(claimValue);
 
-                return tst == 100;
+                return tst == 100 ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
             });
 
             var token = provider.Create();
@@ -300,9 +321,7 @@ namespace Jot.Tests
         public void CanSkipNbfClaim_Pass()
         {
             var provider = new JotProvider();
-            var validationContainer = new JotValidationContainer();
-
-            validationContainer.SkipClaimVerification(JotDefaultClaims.EXP);
+            var validationContainer = new JotDefaultValidationContainer();
 
             var token = provider.Create();
 
@@ -321,7 +340,7 @@ namespace Jot.Tests
         public void CanSkipNbfClaim_Fail()
         {
             var provider = new JotProvider();
-            var validationContainer = new JotValidationContainer();
+            var validationContainer = new JotDefaultValidationContainer();
 
             var token = provider.Create();
 
@@ -334,61 +353,6 @@ namespace Jot.Tests
             var validationResult = provider.Validate(encodedToken, validationContainer);
 
             Assert.IsTrue(validationResult == TokenValidationResult.TokenExpired);
-        }
-
-        [TestMethod]
-        public void SkipDefaultAndCustomProcessingAndAddCustomProcessingThatShouldBeSkipped()
-        {
-            var provider = new JotProvider();
-            var timeProvider = new UnixTimeProvider();
-            var validationContainer = new JotValidationContainer();
-            var wasCustomValidationRun = false;
-
-            // skip default processing
-            validationContainer.SkipClaimVerification(JotDefaultClaims.NBF);
-
-            // add custom processing
-            validationContainer.AddCustomClaimVerification(JotDefaultClaims.NBF, (claimValue) =>
-            {
-                wasCustomValidationRun = true;
-                return true;
-            });
-
-            var token = provider.Create();
-
-            token.SetClaim(JotDefaultClaims.NBF, timeProvider.GetUnixTimestamp(60));
-
-            var encodedToken = provider.Encode(token);
-
-            var validationResult = provider.Validate(encodedToken, validationContainer);
-
-            Assert.IsTrue(validationResult == TokenValidationResult.Passed && !wasCustomValidationRun);
-        }
-
-        [TestMethod]
-        public void SkipDefaultProcessingAndAddCustomProcessingThatWasRun()
-        {
-            var provider = new JotProvider();
-            var timeProvider = new UnixTimeProvider();
-            var validationContainer = new JotValidationContainer();
-            var wasCustomValidationRun = false;
-
-            // add custom processing
-            validationContainer.AddCustomClaimVerification(JotDefaultClaims.NBF, (claimValue) =>
-            {
-                wasCustomValidationRun = true;
-                return true;
-            });
-
-            var token = provider.Create();
-
-            token.SetClaim(JotDefaultClaims.NBF, timeProvider.GetUnixTimestamp(60));
-
-            var encodedToken = provider.Encode(token);
-
-            var validationResult = provider.Validate(encodedToken, validationContainer);
-
-            Assert.IsTrue(validationResult == TokenValidationResult.Passed && wasCustomValidationRun);
         }
     }
 }

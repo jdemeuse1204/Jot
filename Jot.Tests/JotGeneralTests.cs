@@ -6,6 +6,7 @@ using Jot.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Shouldly;
 using Jot.Time;
+using Jot.ValidationContainers;
 
 namespace Jot.Tests
 {
@@ -356,9 +357,7 @@ namespace Jot.Tests
 
             token.SetClaim(JotDefaultClaims.IAT, _timeProvider.GetUnixTimestamp(600));
 
-            var validationContainer = new JotValidationContainer();
-
-            validationContainer.SkipClaimVerification(JotDefaultClaims.IAT);
+            var validationContainer = new JotDefaultValidationContainer();
 
             var jwt = jot.Encode(token);
 
@@ -374,7 +373,7 @@ namespace Jot.Tests
 
             var token = jot.Create();
 
-            var validationContainer = new JotValidationContainer();
+            var validationContainer = new JotDefaultValidationContainer();
 
             var jwt = jot.Encode(token);
 
