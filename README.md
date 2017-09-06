@@ -2,12 +2,13 @@
 **Jot** is a .NET library for use with JSON Web Tokens (JWT).  Jot will take care of all your JWT creation, encryption(hashing), and verification for you.  **Jot** was made extremely flexible, if you want to use your own hash algorithm, serialization, or set custom claims it's all there for you.  What set's **Jot** apart from others is the ability to use **Ghost Claims**.  This feature helps guard against a JWT being decoded by someone you do not want decoding your JWT.  See below for an explanation on **Ghost Claims**.  **Jot** was built on .NET 4.0.
 
 ## Current Version
-1.1
+1.2
 
 ## Version Changes
  + 1.0 - Initial Version
  + 1.0.1 - Resolved issues opened on github
  + 1.1 - Changed claim validation.  Adding custom validation now overrides default validation.  Skipping any validation will also skip custom validation.  Changed the errors for custom validation.  If custom validation is added for the **nbf** claim, the error will be an **nbf** error instead of a custom validation error.
+ + 1.2 - Per the RFC Spec, changed validation of the iat claim.  Claim is now only verified to be numeric
 
 ## Getting Started
 Jot is very easy to get started, use nuget to add the reference to your project
