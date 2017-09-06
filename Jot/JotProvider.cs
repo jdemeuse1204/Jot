@@ -419,7 +419,7 @@ namespace Jot
             var jti = token.ClaimExists(JotDefaultClaims.JTI) ? jwt.GetClaim<Guid>(JotDefaultClaims.JTI) : Guid.Empty;
             var nbf = jwt.GetClaim<double>(JotDefaultClaims.NBF);
             var exp = jwt.GetClaim<double>(JotDefaultClaims.EXP);
-            var iat = jwt.GetClaim<double>(JotDefaultClaims.IAT);
+            var iat = jwt.GetClaim(JotDefaultClaims.IAT);
 
             // get all of the custom checks
             var customChecks = validationContainer.GetCustomClaimVerifications();
@@ -531,19 +531,22 @@ namespace Jot
                 }
             }
 
-            public static bool IsIatValid(double claimValue, double currentUnixTime, JotValidationContainer validationContainer)
+            public static bool IsIatValid(object claimValue, double currentUnixTime, JotValidationContainer validationContainer)
             {
+                if (claimValue == null) return false;
+
                 var customValidator = _getCustomClaimVerification(validationContainer, JotDefaultClaims.IAT);
 
                 if (customValidator != null)
                 {
                     var validator = customValidator as JotValidationContainer.OnValidateCustom;
 
-                    return validator != null ? validator(claimValue) : claimValue == Convert.ToDouble(validator);
+                    return validator != null ? validator(claimValue) : Convert.ToDouble(claimValue) == Convert.ToDouble(validator);
                 }
                 else
                 {
-                    return Math.Abs(claimValue) > 0 && claimValue <= currentUnixTime;
+                    double parsedValue;
+                    return double.TryParse(claimValue.ToString(), out parsedValue);
                 }
             }
 
