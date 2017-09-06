@@ -328,7 +328,7 @@ namespace Jot.Tests
 
             var validationResult = jot.Validate(jwt);
 
-            Assert.IsTrue(validationResult == TokenValidationResult.CreatedTimeCheckFailed);
+            Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }
 
         [TestMethod]
@@ -344,7 +344,7 @@ namespace Jot.Tests
 
             var validationResult = jot.Validate(jwt);
 
-            Assert.IsTrue(validationResult == TokenValidationResult.CreatedTimeCheckFailed);
+            Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }
 
         [TestMethod]
