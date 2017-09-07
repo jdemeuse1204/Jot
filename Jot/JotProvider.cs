@@ -6,11 +6,14 @@
  * Copyright (c) 2016 James Demeuse
  */
 
+using Jot.Attributes;
 using Jot.Time;
 using Jot.ValidationContainers;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web.Script.Serialization;
@@ -371,38 +374,27 @@ namespace Jot
         /// <returns></returns>
         public TokenValidationResult Validate(string encodedToken)
         {
-            return Validate<JotDefaultValidationContainer>(encodedToken);
+            return Validate<JotDefaultValidationRules>(encodedToken);
         }
 
         public TokenValidationResult Validate(string encodedToken, string secret)
         {
-            return Validate<JotDefaultValidationContainer>(encodedToken, secret);
+            return Validate<JotDefaultValidationRules>(encodedToken, secret);
         }
 
-        public TokenValidationResult Validate<T>(string encodedToken) where T : IValidationContainer
+        public TokenValidationResult Validate<T>(string encodedToken) where T : class
         {
             var section = _getConfigurationSection();
 
-            return Validate(encodedToken, section.GetEncryptionSecret(), Activator.CreateInstance<T>());
+            return Validate<T>(encodedToken, section.GetEncryptionSecret());
         }
 
-        public TokenValidationResult Validate<T>(string encodedToken, string secret) where T : IValidationContainer
-        {
-            return Validate(encodedToken, secret, Activator.CreateInstance<T>());
-        }
-
-        public TokenValidationResult Validate(string encodedToken, IValidationContainer validationContainer)
-        {
-            var section = _getConfigurationSection();
-
-            return Validate(encodedToken, section.GetEncryptionSecret(), validationContainer);
-        }
-
-        public TokenValidationResult Validate(string encodedToken, string secret, IValidationContainer validationContainer)
+        public TokenValidationResult Validate<T>(string encodedToken, string secret) where T : class
         {
             var token = Decode(encodedToken);
             var jwt = token as JwtToken;
             var alreadyValidatedClaims = new List<string>();
+            var validator = Activator.CreateInstance<T>();
 
             if (jwt == null) return TokenValidationResult.TokenNotCorrectlyFormed;
 
@@ -415,58 +407,85 @@ namespace Jot
             if (!string.Equals(signatureFromToken, recreatedSignedSignature)) return TokenValidationResult.SignatureNotValid;
 
             // build the validator
-            validationContainer.Build();
+            var methods = typeof(T).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
+                .Where(w => w.ReturnType == typeof(TokenValidationResult) && w.GetCustomAttributesData().Any(x => x.GetType() == typeof(VerifyClaim)))
+                .ToList();
 
-            // get all of the custom checks
-            var allRequiredChecks = validationContainer.GetClaimVerifications();
-            var allOptionalChecks = validationContainer.GetClaimOptionalVerifications();
-
-            var onValidate = validationContainer.GetOnValidate();
-            // do before jti, jti should always be last
-            if (onValidate != null)
-            {
-                var result = onValidate(token);
-
-                if(result != TokenValidationResult.Passed) { return result; }
-            }
+            var requiredChecks = methods.Where(w => w.GetCustomAttributesData().Any(x => x.GetType() == typeof(Required))).ToList();
+            var optionalChecks = methods.Where(w => w.GetCustomAttributesData().All(x => x.GetType() != typeof(Required))).ToList();
 
             // perform all required checks
-            var requiredChecksResult = ExecuteChecks(allRequiredChecks, token, false);
+            var requiredChecksResult = ExecuteChecks(requiredChecks, token, validator, false);
 
             if (requiredChecksResult != TokenValidationResult.Passed) { return requiredChecksResult; }
 
             // perform all optional checks
-            return ExecuteChecks(allOptionalChecks, token, false);
+            return ExecuteChecks(optionalChecks, token, validator, true);
         }
 
-        private TokenValidationResult ExecuteChecks(Dictionary<string, Func<object, TokenValidationResult>> checks, IJotToken token, bool areOptionalClaims)
+        private TokenValidationResult ExecuteChecks<T>(List<MethodInfo> checks, IJotToken token, T validator, bool areOptionalClaims) where T : class
         {
-            if (checks == null) return TokenValidationResult.Passed;
+            var result = TokenValidationResult.Passed;
 
-            foreach (var item in checks)
+            foreach (var check in checks)
             {
-                if (!token.ClaimExists(item.Key))
+                var claim = (VerifyClaim)check.GetCustomAttributes(false).FirstOrDefault(w => w.GetType() == typeof(VerifyClaim));
+
+                if (check.ReturnType != typeof(TokenValidationResult))
+                {
+                    throw new JotException($"Method {check.Name} must have return type of TokenValidationResult");
+                }
+
+                if (claim == null)
+                {
+                    throw new JotException($"Method {check.Name} is missing Claim attribute from validator {nameof(T)}");
+                }
+
+                // if the token is missing, do not verify
+                if (!token.ClaimExists(claim.ClaimKey))
                 {
                     if (areOptionalClaims) { continue; }
 
                     return TokenValidationResult.ClaimMissing;
                 }
 
-                var onValidateClaim = item.Value;
-                var claimValue = token.GetClaim(item.Key);
+                var claimValue = token.GetClaim(claim.ClaimKey);
+                var parameters = check.GetParameters().ToList();
 
-                if (onValidateClaim != null)
+                if (parameters.Count != 1)
                 {
-                    var result = onValidateClaim(claimValue);
-                    if (result != TokenValidationResult.Passed) return result;
-
-                    continue;
+                    throw new JotException($"Method {check.Name} must have only one parameter that accepts claim value");
                 }
 
-                if (!Equals(claimValue, item.Value)) return TokenValidationResult.CustomCheckFailed;
+                if (parameters[0].ParameterType == typeof(object))
+                {
+                    result = (TokenValidationResult)check.Invoke(validator, new object[] { claimValue });
+
+                    if (result != TokenValidationResult.Passed) { return result; }
+                }
+
+                if (claimValue == null)
+                {
+                    if (!IsNullable(parameters[0].ParameterType))
+                    {
+                        throw new JotException($"Method {check.Name} must have nullable parameter because claim value is null");
+                    }
+                }
+
+                TypeConverter converter = TypeDescriptor.GetConverter(parameters[0].ParameterType);
+                var convertedValue = converter.ConvertFrom(claimValue.ToString());
+
+                result = (TokenValidationResult)check.Invoke(validator, new object[] { (dynamic)convertedValue });
+
+                if (result != TokenValidationResult.Passed) { return result; }
             }
 
-            return TokenValidationResult.Passed;
+            return result;
+        }
+
+        private bool IsNullable(Type type)
+        {
+            return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
         }
         #endregion
 

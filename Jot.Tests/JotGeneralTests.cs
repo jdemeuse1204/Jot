@@ -15,6 +15,7 @@ namespace Jot.Tests
     {
         private UnixTimeProvider _timeProvider => new UnixTimeProvider(new TimeProvider());
 
+
         [TestMethod]
         public void CreateClaimWithNoPayload()
         {
@@ -357,11 +358,11 @@ namespace Jot.Tests
 
             token.SetClaim(JotDefaultClaims.IAT, _timeProvider.GetUnixTimestamp(600));
 
-            var validationContainer = new JotDefaultValidationContainer();
+            var validationContainer = new JotDefaultValidationRules();
 
             var jwt = jot.Encode(token);
 
-            var validationResult = jot.Validate(jwt, validationContainer);
+            var validationResult = jot.Validate<JotDefaultValidationRules>(jwt);
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }
@@ -373,11 +374,37 @@ namespace Jot.Tests
 
             var token = jot.Create();
 
-            var validationContainer = new JotDefaultValidationContainer();
+            var jwt = jot.Encode(token);
+
+            var validationResult = jot.Validate<JotDefaultValidationRules>(jwt);
+
+            Assert.IsTrue(validationResult == TokenValidationResult.Passed);
+        }
+
+
+
+        [TestMethod]
+        public void TEST()
+        {
+            var jot = new JotProvider();
+
+            var payload = new Dictionary<string, object>
+            {
+                {"iat", _timeProvider.GetUnixTimestamp()},
+                {"exp", _timeProvider.GetUnixTimestamp(30)},
+                {"rol", "Test"},
+                {"jti", Guid.Empty},
+                {"iss", "Test"},
+                {"aud", ""},
+                {"nbf", (_timeProvider.GetUnixTimestamp(0))},
+                {"sub", ""},
+            };
+
+            var token = jot.Create(payload);
 
             var jwt = jot.Encode(token);
 
-            var validationResult = jot.Validate(jwt, validationContainer);
+            var validationResult = jot.Validate<TestValidationRules>(jwt);
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }

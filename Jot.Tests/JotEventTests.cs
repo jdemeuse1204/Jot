@@ -184,13 +184,9 @@ namespace Jot.Tests
 
             token.SetClaim("tst", "win");
 
-            var validationContainer = new JotDefaultValidationContainer();
-
-            validationContainer.Add("tst", "tst");
-
             var encodedToken = jot.Encode(token);
 
-            var result = jot.Validate(encodedToken, validationContainer);
+            var result = jot.Validate<JotDefaultValidationRules>(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.CustomCheckFailed);
         }
@@ -262,7 +258,6 @@ namespace Jot.Tests
         {
             var jti = Guid.NewGuid();
             var jot = new TestJtiValidationClaimTokenProvider(jti);
-            var validator = new TestJtiValidationClaimTokenValidator(jti);
 
             var token = jot.Create();
 
@@ -270,7 +265,7 @@ namespace Jot.Tests
 
             var encodedToken = jot.Encode(token);
 
-            var result = jot.Validate(encodedToken, validator);
+            var result = jot.Validate<TestJtiValidationClaimTokenValidator>(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.Passed);
         }
@@ -280,7 +275,6 @@ namespace Jot.Tests
         {
             var jti = Guid.NewGuid();
             var jot = new TestJtiValidationClaimTokenProvider(jti);
-            var validator = new TestJtiValidationClaimTokenValidator(jti);
 
             var token = jot.Create();
 
@@ -288,7 +282,7 @@ namespace Jot.Tests
 
             var encodedToken = jot.Encode(token);
 
-            var result = jot.Validate(encodedToken, validator);
+            var result = jot.Validate<TestJtiValidationClaimTokenValidator>(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.JtiValidateFailed);
         }
@@ -297,16 +291,15 @@ namespace Jot.Tests
         public void MakeSureCustomValidationEventsWork()
         {
             var provider = new JotProvider();
-            var validationContainer = new JotDefaultValidationContainer();
             var wasCustomValidationRun = false;
              
-            validationContainer.Add("tst", (claimValue) => 
-            {
-                wasCustomValidationRun = true;
-                var tst = Convert.ToInt32(claimValue);
+            //validationContainer.Add("tst", (claimValue) => 
+            //{
+            //    wasCustomValidationRun = true;
+            //    var tst = Convert.ToInt32(claimValue);
 
-                return tst == 100 ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
-            });
+            //    return tst == 100 ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
+            //});
 
             var token = provider.Create();
 
@@ -314,7 +307,7 @@ namespace Jot.Tests
 
             var encodedToken = provider.Encode(token);
 
-            var validationResult = provider.Validate(encodedToken, validationContainer);
+            var validationResult = provider.Validate<JotDefaultValidationRules>(encodedToken);
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed && wasCustomValidationRun);
         }
@@ -323,8 +316,6 @@ namespace Jot.Tests
         public void CanSkipNbfClaim_Pass()
         {
             var provider = new JotProvider();
-            var validationContainer = new JotDefaultValidationContainer();
-
             var token = provider.Create();
 
             // set the exp equal to the nbf claim... which says its expired, then skip the exp claim
@@ -333,7 +324,7 @@ namespace Jot.Tests
 
             var encodedToken = provider.Encode(token);
 
-            var validationResult = provider.Validate(encodedToken, validationContainer);
+            var validationResult = provider.Validate<JotDefaultValidationRules>(encodedToken);
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }
@@ -342,7 +333,6 @@ namespace Jot.Tests
         public void CanSkipNbfClaim_Fail()
         {
             var provider = new JotProvider();
-            var validationContainer = new JotDefaultValidationContainer();
 
             var token = provider.Create();
 
@@ -352,7 +342,7 @@ namespace Jot.Tests
 
             var encodedToken = provider.Encode(token);
 
-            var validationResult = provider.Validate(encodedToken, validationContainer);
+            var validationResult = provider.Validate<JotDefaultValidationRules>(encodedToken);
 
             Assert.IsTrue(validationResult == TokenValidationResult.TokenExpired);
         }
