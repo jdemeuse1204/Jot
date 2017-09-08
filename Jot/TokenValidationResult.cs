@@ -19,6 +19,8 @@ namespace Jot
         CustomCheckFailed,
         CreatedTimeCheckFailed,
         Passed,
-        ClaimMissing
+        ClaimMissing,
+        HeaderIncorrect,
+        HeaderMissing
     }
 }

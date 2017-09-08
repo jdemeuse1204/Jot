@@ -3,11 +3,11 @@
 namespace Jot.Attributes
 {
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
-    public class VerifyClaim : Attribute, IVerifiable
+    public class VerifyHeader : Attribute, IVerifiable
     {
         public string Key { get; }
-        
-        public VerifyClaim(string claimKey)
+
+        public VerifyHeader(string claimKey)
         {
             Key = claimKey;
         }

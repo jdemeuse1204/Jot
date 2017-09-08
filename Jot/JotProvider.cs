@@ -391,10 +391,21 @@ namespace Jot
 
         public TokenValidationResult Validate<T>(string encodedToken, string secret) where T : class
         {
+            return Validate(encodedToken, secret, Activator.CreateInstance<T>());
+        }
+
+        public TokenValidationResult Validate<T>(string encodedToken, T validationRules) where T : class
+        {
+            var section = _getConfigurationSection();
+
+            return Validate(encodedToken, section.GetEncryptionSecret(), validationRules);
+        }
+
+        public TokenValidationResult Validate<T>(string encodedToken, string secret, T validationRules) where T : class
+        {
             var token = Decode(encodedToken);
             var jwt = token as JwtToken;
             var alreadyValidatedClaims = new List<string>();
-            var validator = Activator.CreateInstance<T>();
 
             if (jwt == null) return TokenValidationResult.TokenNotCorrectlyFormed;
 
@@ -407,85 +418,177 @@ namespace Jot
             if (!string.Equals(signatureFromToken, recreatedSignedSignature)) return TokenValidationResult.SignatureNotValid;
 
             // build the validator
-            var methods = typeof(T).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
-                .Where(w => w.ReturnType == typeof(TokenValidationResult) && w.GetCustomAttributesData().Any(x => x.GetType() == typeof(VerifyClaim)))
+            var claimValidationMethods = typeof(T).GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .Where(w => w.ReturnType == typeof(TokenValidationResult) && w.GetCustomAttributes(false).Any(x => x.GetType() == typeof(VerifyClaim)))
                 .ToList();
+            var headerValidationMethods = typeof(T).GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .Where(w => w.ReturnType == typeof(TokenValidationResult) && w.GetCustomAttributes(false).Any(x => x.GetType() == typeof(VerifyHeader)))
+                .ToList();
+            var onFail = typeof(T).GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .FirstOrDefault(w => w.GetCustomAttributes(false).Any(x => x.GetType() == typeof(OnValidationFail)));
 
-            var requiredChecks = methods.Where(w => w.GetCustomAttributesData().Any(x => x.GetType() == typeof(Required))).ToList();
-            var optionalChecks = methods.Where(w => w.GetCustomAttributesData().All(x => x.GetType() != typeof(Required))).ToList();
+            // perform all claim checks
+            var claimChecks = ExecuteChecks<T, VerifyClaim>(claimValidationMethods, onFail, token, validationRules);
 
-            // perform all required checks
-            var requiredChecksResult = ExecuteChecks(requiredChecks, token, validator, false);
+            if (claimChecks != TokenValidationResult.Passed) { return claimChecks; }
 
-            if (requiredChecksResult != TokenValidationResult.Passed) { return requiredChecksResult; }
-
-            // perform all optional checks
-            return ExecuteChecks(optionalChecks, token, validator, true);
+            // perform all header checks
+            return ExecuteChecks<T, VerifyHeader>(headerValidationMethods, onFail, token, validationRules);
         }
 
-        private TokenValidationResult ExecuteChecks<T>(List<MethodInfo> checks, IJotToken token, T validator, bool areOptionalClaims) where T : class
+        private bool ClaimExists(IJotToken token, VerifyClaim claimAttribute)
+        {
+            return token.ClaimExists(claimAttribute.Key);
+        }
+
+        private bool ClaimExists(IJotToken token, VerifyHeader headerAttribute)
+        {
+            return token.HeaderExists(headerAttribute.Key);
+        }
+
+        private object GetClaimValue(IJotToken token, VerifyClaim claimAttribute)
+        {
+            return token.GetClaim(claimAttribute.Key);
+        }
+
+        private object GetClaimValue(IJotToken token, VerifyHeader headerAttribute)
+        {
+            return token.GetHeader(headerAttribute.Key);
+        }
+
+        private TokenValidationResult ExecuteChecks<T, K>(List<MethodInfo> checks, MethodInfo onFail, IJotToken token, T validator) where T : class where K : IVerifiable
         {
             var result = TokenValidationResult.Passed;
 
             foreach (var check in checks)
             {
-                var claim = (VerifyClaim)check.GetCustomAttributes(false).FirstOrDefault(w => w.GetType() == typeof(VerifyClaim));
+                var attributes = check.GetCustomAttributes(false);
+                var claimOrHeader = (IVerifiable)attributes.FirstOrDefault(w => w.GetType() == typeof(K));
+                var required = (Required)attributes.FirstOrDefault(w => w.GetType() == typeof(Required));
 
                 if (check.ReturnType != typeof(TokenValidationResult))
                 {
-                    throw new JotException($"Method {check.Name} must have return type of TokenValidationResult");
-                }
-
-                if (claim == null)
-                {
-                    throw new JotException($"Method {check.Name} is missing Claim attribute from validator {nameof(T)}");
+                    throw new JotException($"Method {check.Name} must have return type of TokenValidationResult. Key: {claimOrHeader.Key}");
                 }
 
                 // if the token is missing, do not verify
-                if (!token.ClaimExists(claim.ClaimKey))
+                if (!ClaimExists(token, claimOrHeader as dynamic))
                 {
-                    if (areOptionalClaims) { continue; }
+                    if (required == null) { continue; }
+
+                    TryInvokeOnFail(validator, onFail, TokenValidationResult.ClaimMissing, claimOrHeader.Key, null);
 
                     return TokenValidationResult.ClaimMissing;
                 }
 
-                var claimValue = token.GetClaim(claim.ClaimKey);
+                var claimOrHeaderValue = GetClaimValue(token, claimOrHeader as dynamic);
                 var parameters = check.GetParameters().ToList();
+                var claimParameter = parameters.Where(w => w.GetCustomAttributes(false).All(x => x.GetType() != typeof(InjectAdditionalClaim))).ToList();
+                var additionalParameters = parameters.Where(w => w.GetCustomAttributes(false).Any(x => x.GetType() == typeof(InjectAdditionalClaim))).ToList();
 
-                if (parameters.Count != 1)
+                if (claimParameter.Count != 1)
                 {
-                    throw new JotException($"Method {check.Name} must have only one parameter that accepts claim value");
+                    throw new JotException($"Method {check.Name} has more than one parameter.  If there is more than one parameter all additional parameters must be decorated with the InjectAdditionalClaim attribute.  Key: {claimOrHeader.Key}");
                 }
 
-                if (parameters[0].ParameterType == typeof(object))
+                if (additionalParameters.Count == 0 && claimParameter[0].ParameterType == typeof(object))
                 {
-                    result = (TokenValidationResult)check.Invoke(validator, new object[] { claimValue });
+                    result = (TokenValidationResult)check.Invoke(validator, new object[] { claimOrHeaderValue });
 
-                    if (result != TokenValidationResult.Passed) { return result; }
-                }
-
-                if (claimValue == null)
-                {
-                    if (!IsNullable(parameters[0].ParameterType))
+                    if (result != TokenValidationResult.Passed)
                     {
-                        throw new JotException($"Method {check.Name} must have nullable parameter because claim value is null");
+                        TryInvokeOnFail(validator, onFail, result, claimOrHeader.Key, claimOrHeaderValue);
+                        return result;
                     }
                 }
 
-                TypeConverter converter = TypeDescriptor.GetConverter(parameters[0].ParameterType);
-                var convertedValue = converter.ConvertFrom(claimValue.ToString());
+                var isNullable = IsNullable(parameters[0].ParameterType);
 
-                result = (TokenValidationResult)check.Invoke(validator, new object[] { (dynamic)convertedValue });
+                if (claimOrHeaderValue == null)
+                {
+                    if (!isNullable && parameters[0].ParameterType != typeof(string))
+                    {
+                        throw new JotException($"Method {check.Name} must have nullable parameter because claim value is null. Key: {claimOrHeader.Key}");
+                    }
+                }
 
-                if (result != TokenValidationResult.Passed) { return result; }
+                List<object> methodParameters = additionalParameters.Select(w => GetAdditionalParameterValue<K>(w, token)).ToList();
+
+                var convertedValue = claimOrHeaderValue == null ? null : ConvertClaimValue(parameters[0], claimOrHeader.Key, claimOrHeaderValue);
+                methodParameters.Insert(0, (dynamic)convertedValue);
+
+                result = (TokenValidationResult)check.Invoke(validator, methodParameters.ToArray());
+
+                if (result != TokenValidationResult.Passed)
+                {
+                    TryInvokeOnFail(validator, onFail, result, claimOrHeader.Key, claimOrHeaderValue);
+                    return result;
+                }
             }
 
             return result;
         }
 
+        private dynamic GetAdditionalParameterValue<K>(ParameterInfo parameter, IJotToken token) where K : IVerifiable
+        {
+            var attribute = (InjectAdditionalClaim)parameter.GetCustomAttributes(false).First(w => w.GetType() == typeof(InjectAdditionalClaim));
+            var claimOrHeaderExists = typeof(K) == typeof(VerifyClaim) ? token.ClaimExists(attribute.Key) : token.HeaderExists(attribute.Key);
+
+            if (!claimOrHeaderExists)
+            {
+                if (attribute.IsRequired)
+                {
+                    throw new JotException($"InjectAdditionalClaim error. Required claim key is missing from token.  Claim Key: {attribute.Key}");
+                }
+
+                return null;
+            }
+
+            var claimOrHeaderValue = typeof(K) == typeof(VerifyClaim) ? token.GetClaim(attribute.Key) : token.GetHeader(attribute.Key);
+
+            if (claimOrHeaderValue == null) return null;
+
+            return (dynamic)ConvertClaimValue(parameter, attribute.Key, claimOrHeaderValue);
+        }
+
+        private object ConvertClaimValue(ParameterInfo parameter, string claimKey, object value)
+        {
+            try
+            {
+                return (dynamic)TypeDescriptor.GetConverter(parameter.ParameterType).ConvertFrom(value.ToString());
+            }
+            catch (Exception)
+            { 
+                // NEED ADDITIONAL CLAIM ERROR!
+                throw new JotException($"Cannot convert {value.GetType().Name} to {parameter.ParameterType.Name}.  Claim Key: {claimKey}");
+            }
+
+        }
+
+        private void TryInvokeOnFail<T>(T validator, MethodInfo onFail, TokenValidationResult tokenResult, string claimKey, object claimValue) where T : class
+        {
+            try
+            {
+                onFail?.Invoke(validator, new object[] { tokenResult, claimKey, claimValue });
+            }
+            catch (TargetParameterCountException)
+            {
+                throw new JotException("Parameter mismatch count for OnFail method, must have 3 (TokenValidationResult, String, Object)");
+            }
+            catch (ArgumentException ex)
+            {
+                throw new JotException($"Parameter type mismatch for OnFail method.  {ex.Message}");
+            }
+        }
+
         private bool IsNullable(Type type)
         {
             return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
+        }
+
+        private Type GetType(ParameterInfo parameter)
+        {
+            return IsNullable(parameter.ParameterType) ? Nullable.GetUnderlyingType(parameter.ParameterType) : parameter.ParameterType;
         }
         #endregion
 

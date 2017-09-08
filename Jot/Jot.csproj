@@ -41,8 +41,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Attributes\Claim.cs" />
+    <Compile Include="Attributes\IVerifiable.cs" />
+    <Compile Include="Attributes\OnValidationFail.cs" />
     <Compile Include="Attributes\VerifyClaim.cs" />
     <Compile Include="Attributes\Required.cs" />
+    <Compile Include="Attributes\VerifyHeader.cs" />
     <Compile Include="HashAlgorithm.cs" />
     <Compile Include="IJotToken.cs" />
     <Compile Include="JotAuthConfigurationSection.cs" />
@@ -58,13 +62,12 @@
     <Compile Include="TokenValidationResult.cs" />
     <Compile Include="ValidationContainers\JotDefaultValidationRules.cs" />
     <Compile Include="ValidationContainers\RfcBaseRules.cs" />
-    <Compile Include="ValidationContainers\TestValidationRules.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Jot.licenseheader" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ValidationContainers\RfsSpecValidationRules.cs" />
+    <Compile Include="ValidationContainers\RfcSpecValidationRules.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

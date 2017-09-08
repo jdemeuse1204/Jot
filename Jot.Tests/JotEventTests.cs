@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using Jot.Time;
 using Jot.ValidationContainers;
 using System.Threading;
+using Jot.Attributes;
 
 namespace Jot.Tests
 {
@@ -46,20 +47,12 @@ namespace Jot.Tests
         }
     }
 
-    public class TestValidateJwtTokenValidator : ValidationContainerBase, IValidationContainer
+    public class TestJwtValidationRules
     {
-        public TestValidateJwtTokenValidator() : base(new UnixTimeProvider())
+        [VerifyClaim("tst")]
+        public TokenValidationResult ValidateTstClaim(string claimValue)
         {
-        }
-
-        public void Build()
-        {
-            OnValidate = (token) =>
-            {
-                var claimValue = token.GetClaim("tst");
-
-                return Equals(claimValue, "win") == false ? TokenValidationResult.OnTokenValidateFailed : TokenValidationResult.Passed;
-            };
+            return Equals(claimValue, "win") == false ? TokenValidationResult.OnTokenValidateFailed : TokenValidationResult.Passed;
         }
     }
 
@@ -96,21 +89,19 @@ namespace Jot.Tests
         }
     }
 
-    public class TestJtiValidationClaimTokenValidator : ValidationContainerBase, IValidationContainer
+    public class TestValidateJtiRules
     {
-        private readonly Guid _jti;
+        private Guid _jti;
 
-        public void Build()
-        {
-            Add(JotDefaultClaims.JTI, (value) =>
-            {
-                return Guid.Parse(value.ToString()) == _jti ? TokenValidationResult.Passed : TokenValidationResult.JtiValidateFailed;
-            });
-        }
-
-        public TestJtiValidationClaimTokenValidator(Guid jti) : base(new UnixTimeProvider())
+        public TestValidateJtiRules(Guid jti)
         {
             _jti = jti;
+        }
+
+        [VerifyClaim("jti")]
+        public TokenValidationResult ValidateJti(Guid claimValue)
+        {
+            return claimValue == _jti ? TokenValidationResult.Passed : TokenValidationResult.JtiValidateFailed;
         }
     }
 
@@ -202,7 +193,7 @@ namespace Jot.Tests
 
             var encodedToken = jot.Encode(token);
 
-            var result = jot.Validate<TestValidateJwtTokenValidator>(encodedToken);
+            var result = jot.Validate<TestJwtValidationRules>(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.OnTokenValidateFailed);
         }
@@ -264,8 +255,9 @@ namespace Jot.Tests
             token.SetClaim("jti", jti);
 
             var encodedToken = jot.Encode(token);
+            var validator = new TestValidateJtiRules(jti);
 
-            var result = jot.Validate<TestJtiValidationClaimTokenValidator>(encodedToken);
+            var result = jot.Validate(encodedToken, validator);
 
             Assert.AreEqual(result, TokenValidationResult.Passed);
         }
@@ -282,7 +274,7 @@ namespace Jot.Tests
 
             var encodedToken = jot.Encode(token);
 
-            var result = jot.Validate<TestJtiValidationClaimTokenValidator>(encodedToken);
+            var result = jot.Validate<TestValidateJtiRules>(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.JtiValidateFailed);
         }

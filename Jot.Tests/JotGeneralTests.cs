@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Shouldly;
 using Jot.Time;
 using Jot.ValidationContainers;
+using Jot.Attributes;
 
 namespace Jot.Tests
 {
@@ -390,7 +391,7 @@ namespace Jot.Tests
 
             var payload = new Dictionary<string, object>
             {
-                {"iat", _timeProvider.GetUnixTimestamp()},
+                {"iat", null},
                 {"exp", _timeProvider.GetUnixTimestamp(30)},
                 {"rol", "Test"},
                 {"jti", Guid.Empty},
@@ -401,12 +402,34 @@ namespace Jot.Tests
             };
 
             var token = jot.Create(payload);
+            token.SetClaim(JotDefaultClaims.JTI, Guid.Empty);
 
             var jwt = jot.Encode(token);
 
-            var validationResult = jot.Validate<TestValidationRules>(jwt);
+            var validationResult = jot.Validate<SomeRules>(jwt);
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed);
+        }
+
+        [TestMethod]
+        public void TEST2()
+        {
+            var jot = new JotProvider(30, HashAlgorithm.HS256);
+            var jwt = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOi0xLCJuYmYiOi0xfQ.ionM9Lyf-NmhfsFFgG5h8ZG6Esdv0Si6AS_sTHIArgg";
+            var secret = "FLvSlAxz0AdX6o8ar_DRX5yEHaw_oB6cGhNq_3hMB_fzBnEpXvVGm2ZL2t6uK75P";
+            var validationResult = jot.Validate(jwt, secret);
+
+            Assert.IsTrue(validationResult == TokenValidationResult.Passed);
+        }
+    }
+
+    class SomeRules : RfcSpecValidationRules
+    {
+        [Required]
+        [VerifyClaim("jti")]
+        public TokenValidationResult ValidateJtiClaim(Guid jtiClaimValue, [InjectAdditionalClaim("usr")] string user)
+        {
+            return jtiClaimValue == Guid.Empty ? TokenValidationResult.Passed : TokenValidationResult.JtiValidateFailed;
         }
     }
 }

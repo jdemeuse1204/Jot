@@ -10,11 +10,11 @@ using Jot.Attributes;
 
 namespace Jot.ValidationContainers
 {
-    public sealed class JotDefaultValidationRules : RfcBaseRules
+    public class JotDefaultValidationRules : RfcBaseRules
     {
         [Required]
         [VerifyClaim("nbf")]
-        public TokenValidationResult ValidateIatClaim(long claimValue)
+        public TokenValidationResult ValidateNbfClaim(long claimValue)
         {
             return IsIatClaimValid(claimValue) ? TokenValidationResult.Passed : TokenValidationResult.NotBeforeFailed;
         }
