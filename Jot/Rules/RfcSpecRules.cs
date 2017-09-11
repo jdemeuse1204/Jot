@@ -8,25 +8,22 @@
 
 using Jot.Attributes;
 
-namespace Jot.ValidationContainers
+namespace Jot.Rules
 {
-    public class JotDefaultValidationRules : RfcBaseRules
+    public class RfcSpecRules : RfcBaseRules
     {
-        [Required]
         [VerifyClaim("nbf")]
-        public TokenValidationResult ValidateNbfClaim(long claimValue)
+        public TokenValidationResult ValidateNbfClaim(long? claimValue)
         {
-            return IsIatClaimValid(claimValue) ? TokenValidationResult.Passed : TokenValidationResult.NotBeforeFailed;
+            return claimValue.HasValue && IsNbfClaimValid(claimValue.Value) ? TokenValidationResult.Passed : TokenValidationResult.NotBeforeFailed;
         }
 
-        [Required]
         [VerifyClaim("exp")]
-        public TokenValidationResult ValidateExpClaim(int claimValue)
+        public TokenValidationResult ValidateExpClaim(long? claimValue)
         {
-            return IsExpClaimValid(claimValue) ? TokenValidationResult.Passed : TokenValidationResult.TokenExpired;
+            return claimValue.HasValue && IsExpClaimValid(claimValue.Value) ? TokenValidationResult.Passed : TokenValidationResult.TokenExpired;
         }
 
-        [Required]
         [VerifyClaim("iat")]
         public TokenValidationResult ValidateIatClaim(string claimValue)
         {

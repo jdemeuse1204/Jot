@@ -8,7 +8,7 @@
 
 using Jot.Attributes;
 using Jot.Time;
-using Jot.ValidationContainers;
+using Jot.Rules;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -374,12 +374,12 @@ namespace Jot
         /// <returns></returns>
         public TokenValidationResult Validate(string encodedToken)
         {
-            return Validate<JotDefaultValidationRules>(encodedToken);
+            return Validate<JotDefaultRules>(encodedToken);
         }
 
         public TokenValidationResult Validate(string encodedToken, string secret)
         {
-            return Validate<JotDefaultValidationRules>(encodedToken, secret);
+            return Validate<JotDefaultRules>(encodedToken, secret);
         }
 
         public TokenValidationResult Validate<T>(string encodedToken) where T : class
@@ -502,7 +502,7 @@ namespace Jot
                     }
                 }
 
-                var isNullable = IsNullable(parameters[0].ParameterType);
+                var isNullable = parameters[0].ParameterType.IsNullable();
 
                 if (claimOrHeaderValue == null)
                 {
@@ -514,7 +514,7 @@ namespace Jot
 
                 List<object> methodParameters = additionalParameters.Select(w => GetAdditionalParameterValue<K>(w, token)).ToList();
 
-                var convertedValue = claimOrHeaderValue == null ? null : ConvertClaimValue(parameters[0], claimOrHeader.Key, claimOrHeaderValue);
+                var convertedValue = claimOrHeaderValue == null ? null : ConvertClaimValue(parameters[0], claimOrHeader.Key, claimOrHeaderValue, claimOrHeader as dynamic);
                 methodParameters.Insert(0, (dynamic)convertedValue);
 
                 result = (TokenValidationResult)check.Invoke(validator, methodParameters.ToArray());
@@ -548,21 +548,48 @@ namespace Jot
 
             if (claimOrHeaderValue == null) return null;
 
-            return (dynamic)ConvertClaimValue(parameter, attribute.Key, claimOrHeaderValue);
+            return (dynamic)ConvertClaimValue(parameter, attribute.Key, claimOrHeaderValue, attribute);
         }
 
-        private object ConvertClaimValue(ParameterInfo parameter, string claimKey, object value)
+        private dynamic ConvertObject(object value, Type type)
+        {
+            return (dynamic)TypeDescriptor.GetConverter(type).ConvertFrom(value.ToString());
+        }
+
+        private object ConvertClaimValue(ParameterInfo parameter, string claimKey, object value, VerifyClaim attribute)
         {
             try
             {
-                return (dynamic)TypeDescriptor.GetConverter(parameter.ParameterType).ConvertFrom(value.ToString());
+                return ConvertObject(value, parameter.ParameterType);
             }
             catch (Exception)
-            { 
-                // NEED ADDITIONAL CLAIM ERROR!
-                throw new JotException($"Cannot convert {value.GetType().Name} to {parameter.ParameterType.Name}.  Claim Key: {claimKey}");
+            {
+                throw new JotException($"Cannot convert Claim {value.GetType().Name} to {parameter.GetParameterType().Name}.  Claim Key: {claimKey}");
             }
+        }
 
+        private object ConvertClaimValue(ParameterInfo parameter, string claimKey, object value, VerifyHeader attribute)
+        {
+            try
+            {
+                return ConvertObject(value, parameter.ParameterType);
+            }
+            catch (Exception)
+            {
+                throw new JotException($"Cannot convert Header Claim {value.GetType().Name} to {parameter.GetParameterType().Name}.  Header Claim Key: {claimKey}");
+            }
+        }
+
+        private object ConvertClaimValue(ParameterInfo parameter, string claimKey, object value, InjectAdditionalClaim attribute)
+        {
+            try
+            {
+                return ConvertObject(value, parameter.ParameterType);
+            }
+            catch (Exception)
+            {
+                throw new JotException($"Cannot convert Additional Injected Claim {value.GetType().Name} to {parameter.GetParameterType().Name}.  Additional Injected Claim Key: {claimKey}");
+            }
         }
 
         private void TryInvokeOnFail<T>(T validator, MethodInfo onFail, TokenValidationResult tokenResult, string claimKey, object claimValue) where T : class
@@ -579,16 +606,6 @@ namespace Jot
             {
                 throw new JotException($"Parameter type mismatch for OnFail method.  {ex.Message}");
             }
-        }
-
-        private bool IsNullable(Type type)
-        {
-            return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
-        }
-
-        private Type GetType(ParameterInfo parameter)
-        {
-            return IsNullable(parameter.ParameterType) ? Nullable.GetUnderlyingType(parameter.ParameterType) : parameter.ParameterType;
         }
         #endregion
 

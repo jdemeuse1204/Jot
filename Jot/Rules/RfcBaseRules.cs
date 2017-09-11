@@ -1,22 +1,22 @@
 ﻿using Jot.Time;
 
-namespace Jot.ValidationContainers
+namespace Jot.Rules
 {
     public abstract class RfcBaseRules
     {
         protected long UnixTimeStamp = new UnixTimeProvider().GetUnixTimestamp();
 
-        public bool IsIatClaimValid(long claimValue)
+        protected bool IsNbfClaimValid(long claimValue)
         {
             return claimValue <= UnixTimeStamp;
         }
 
-        public bool IsExpClaimValid(long claimValue)
+        protected bool IsExpClaimValid(long claimValue)
         {
             return UnixTimeStamp < claimValue;
         }
 
-        public bool IsIatClaimValid(string claimValue)
+        protected bool IsIatClaimValid(string claimValue)
         {
             double value;
             return double.TryParse(claimValue, out value);

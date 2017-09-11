@@ -6,7 +6,7 @@ using Jot.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Shouldly;
 using Jot.Time;
-using Jot.ValidationContainers;
+using Jot.Rules;
 using Jot.Attributes;
 
 namespace Jot.Tests
@@ -359,11 +359,11 @@ namespace Jot.Tests
 
             token.SetClaim(JotDefaultClaims.IAT, _timeProvider.GetUnixTimestamp(600));
 
-            var validationContainer = new JotDefaultValidationRules();
+            var validationContainer = new JotDefaultRules();
 
             var jwt = jot.Encode(token);
 
-            var validationResult = jot.Validate<JotDefaultValidationRules>(jwt);
+            var validationResult = jot.Validate<JotDefaultRules>(jwt);
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }
@@ -377,7 +377,7 @@ namespace Jot.Tests
 
             var jwt = jot.Encode(token);
 
-            var validationResult = jot.Validate<JotDefaultValidationRules>(jwt);
+            var validationResult = jot.Validate<JotDefaultRules>(jwt);
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }
@@ -423,7 +423,7 @@ namespace Jot.Tests
         }
     }
 
-    class SomeRules : RfcSpecValidationRules
+    class SomeRules : RfcSpecRules
     {
         [Required]
         [VerifyClaim("jti")]

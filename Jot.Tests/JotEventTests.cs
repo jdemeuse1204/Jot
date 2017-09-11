@@ -7,7 +7,7 @@ using Jot.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json;
 using Jot.Time;
-using Jot.ValidationContainers;
+using Jot.Rules;
 using System.Threading;
 using Jot.Attributes;
 
@@ -177,7 +177,7 @@ namespace Jot.Tests
 
             var encodedToken = jot.Encode(token);
 
-            var result = jot.Validate<JotDefaultValidationRules>(encodedToken);
+            var result = jot.Validate<JotDefaultRules>(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.CustomCheckFailed);
         }
@@ -299,7 +299,7 @@ namespace Jot.Tests
 
             var encodedToken = provider.Encode(token);
 
-            var validationResult = provider.Validate<JotDefaultValidationRules>(encodedToken);
+            var validationResult = provider.Validate<JotDefaultRules>(encodedToken);
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed && wasCustomValidationRun);
         }
@@ -316,7 +316,7 @@ namespace Jot.Tests
 
             var encodedToken = provider.Encode(token);
 
-            var validationResult = provider.Validate<JotDefaultValidationRules>(encodedToken);
+            var validationResult = provider.Validate<JotDefaultRules>(encodedToken);
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }
@@ -334,7 +334,7 @@ namespace Jot.Tests
 
             var encodedToken = provider.Encode(token);
 
-            var validationResult = provider.Validate<JotDefaultValidationRules>(encodedToken);
+            var validationResult = provider.Validate<JotDefaultRules>(encodedToken);
 
             Assert.IsTrue(validationResult == TokenValidationResult.TokenExpired);
         }
