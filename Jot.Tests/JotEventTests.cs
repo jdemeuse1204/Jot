@@ -6,7 +6,6 @@ using System.Text;
 using Jot.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json;
-using Jot.Time;
 using Jot.Rules;
 using System.Threading;
 using Jot.Attributes;
@@ -98,6 +97,8 @@ namespace Jot.Tests
             _jti = jti;
         }
 
+        public TestValidateJtiRules() { }
+
         [VerifyClaim("jti")]
         public TokenValidationResult ValidateJti(Guid claimValue)
         {
@@ -165,24 +166,6 @@ namespace Jot.Tests
         }
 
         [TestMethod]
-        public void MakeSureValidationContainerWorks()
-        {
-            var jot = new TestJwtTokenProvider();
-
-            var token = jot.Create();
-
-            Thread.Sleep(1000);
-
-            token.SetClaim("tst", "win");
-
-            var encodedToken = jot.Encode(token);
-
-            var result = jot.Validate<JotDefaultRules>(encodedToken);
-
-            Assert.AreEqual(result, TokenValidationResult.CustomCheckFailed);
-        }
-
-        [TestMethod]
         public void MakeSureOnTokenValidateWorks()
         {
             var jot = new TestJwtTokenProvider();
@@ -196,20 +179,6 @@ namespace Jot.Tests
             var result = jot.Validate<TestJwtValidationRules>(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.OnTokenValidateFailed);
-        }
-
-        [TestMethod]
-        public void MakeSureEncryptionHandlerWorks()
-        {
-            var jot = new TestHashJwtTokenProvider();
-
-            var token = jot.Create();
-
-            var encodedToken = jot.Encode(token);
-
-            var result = jot.Validate(encodedToken);
-
-            Assert.AreEqual(result, TokenValidationResult.Passed);
         }
 
         [TestMethod]
@@ -277,66 +246,6 @@ namespace Jot.Tests
             var result = jot.Validate<TestValidateJtiRules>(encodedToken);
 
             Assert.AreEqual(result, TokenValidationResult.JtiValidateFailed);
-        }
-
-        [TestMethod]
-        public void MakeSureCustomValidationEventsWork()
-        {
-            var provider = new JotProvider();
-            var wasCustomValidationRun = false;
-             
-            //validationContainer.Add("tst", (claimValue) => 
-            //{
-            //    wasCustomValidationRun = true;
-            //    var tst = Convert.ToInt32(claimValue);
-
-            //    return tst == 100 ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
-            //});
-
-            var token = provider.Create();
-
-            token.SetClaim("tst", 100);
-
-            var encodedToken = provider.Encode(token);
-
-            var validationResult = provider.Validate<JotDefaultRules>(encodedToken);
-
-            Assert.IsTrue(validationResult == TokenValidationResult.Passed && wasCustomValidationRun);
-        }
-
-        [TestMethod]
-        public void CanSkipNbfClaim_Pass()
-        {
-            var provider = new JotProvider();
-            var token = provider.Create();
-
-            // set the exp equal to the nbf claim... which says its expired, then skip the exp claim
-            var nbf = token.GetClaim<int>(JotDefaultClaims.NBF);
-            token.SetClaim(JotDefaultClaims.EXP, nbf);
-
-            var encodedToken = provider.Encode(token);
-
-            var validationResult = provider.Validate<JotDefaultRules>(encodedToken);
-
-            Assert.IsTrue(validationResult == TokenValidationResult.Passed);
-        }
-
-        [TestMethod]
-        public void CanSkipNbfClaim_Fail()
-        {
-            var provider = new JotProvider();
-
-            var token = provider.Create();
-
-            // set the exp equal to the nbf claim... which says its expired, then skip the exp claim
-            var nbf = token.GetClaim<int>(JotDefaultClaims.NBF);
-            token.SetClaim(JotDefaultClaims.EXP, nbf);
-
-            var encodedToken = provider.Encode(token);
-
-            var validationResult = provider.Validate<JotDefaultRules>(encodedToken);
-
-            Assert.IsTrue(validationResult == TokenValidationResult.TokenExpired);
         }
     }
 }

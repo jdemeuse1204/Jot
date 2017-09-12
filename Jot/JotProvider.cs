@@ -11,7 +11,6 @@ using Jot.Time;
 using Jot.Rules;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -478,7 +477,7 @@ namespace Jot
 
                     TryInvokeOnFail(validator, onFail, TokenValidationResult.ClaimMissing, claimOrHeader.Key, null);
 
-                    return TokenValidationResult.ClaimMissing;
+                    return claimOrHeader is VerifyClaim ? TokenValidationResult.ClaimMissing : TokenValidationResult.HeaderMissing;
                 }
 
                 var claimOrHeaderValue = GetClaimValue(token, claimOrHeader as dynamic);
@@ -551,16 +550,11 @@ namespace Jot
             return (dynamic)ConvertClaimValue(parameter, attribute.Key, claimOrHeaderValue, attribute);
         }
 
-        private dynamic ConvertObject(object value, Type type)
-        {
-            return (dynamic)TypeDescriptor.GetConverter(type).ConvertFrom(value.ToString());
-        }
-
         private object ConvertClaimValue(ParameterInfo parameter, string claimKey, object value, VerifyClaim attribute)
         {
             try
             {
-                return ConvertObject(value, parameter.ParameterType);
+                return value.ConvertTo(parameter.ParameterType);
             }
             catch (Exception)
             {
@@ -572,7 +566,7 @@ namespace Jot
         {
             try
             {
-                return ConvertObject(value, parameter.ParameterType);
+                return value.ConvertTo(parameter.ParameterType);
             }
             catch (Exception)
             {
@@ -584,7 +578,7 @@ namespace Jot
         {
             try
             {
-                return ConvertObject(value, parameter.ParameterType);
+                return value.ConvertTo(parameter.ParameterType);
             }
             catch (Exception)
             {
@@ -688,7 +682,7 @@ namespace Jot
 
             public T GetHeader<T>(string headerKey)
             {
-                return typeof(T) == typeof(Guid) ? (T)(dynamic)Guid.Parse(_header[headerKey].ToString()) : (T)Convert.ChangeType(_header[headerKey], typeof(T));
+                return GetClaimOrHeader<T>(_header, headerKey);
             }
 
             public object GetHeader(string headerKey)
@@ -714,17 +708,7 @@ namespace Jot
 
             public T GetClaim<T>(string claimKey)
             {
-                var claimValue = _claims[claimKey];
-                var claimValueAsString = claimValue == null ? "" : claimValue.ToString();
-
-                if (typeof(T) == typeof(string) && string.Equals(claimValue, "")) return (T)Convert.ChangeType("", typeof(T));
-
-                if (string.IsNullOrEmpty(claimValueAsString) || string.IsNullOrWhiteSpace(claimValueAsString))
-                {
-                    return default(T);
-                }
-
-                return typeof(T) == typeof(Guid) ? (T)(dynamic)Guid.Parse(_claims[claimKey].ToString()) : (T)Convert.ChangeType(_claims[claimKey], typeof(T));
+                return GetClaimOrHeader<T>(_claims, claimKey);
             }
 
             public object GetClaim(string claimKey)
@@ -766,6 +750,27 @@ namespace Jot
                 }
 
                 return false;
+            }
+
+            private T GetClaimOrHeader<T>(Dictionary<string, object> values, string key)
+            {
+                var value = values[key];
+                var isNull = value == null;
+
+                try
+                {
+                    return isNull && (typeof(T).IsNullable() || typeof(T) == typeof(string)) ? null : value.ConvertTo<T>();
+                }
+                catch (Exception ex)
+                {
+                    if (isNull)
+                    {
+                        // throw more informative error
+                        throw new JotException($"Cannot convert null value.  Key: {key}");
+                    }
+                    throw ex;
+                }
+                
             }
         }
 

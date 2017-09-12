@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Reflection;
 
 namespace Jot
@@ -13,6 +14,16 @@ namespace Jot
         public static Type GetParameterType(this ParameterInfo parameter)
         {
             return IsNullable(parameter.ParameterType) ? Nullable.GetUnderlyingType(parameter.ParameterType) : parameter.ParameterType;
+        }
+
+        public static dynamic ConvertTo(this object value, Type type)
+        {
+            return (dynamic)TypeDescriptor.GetConverter(type).ConvertFrom(value.ToString());
+        }
+
+        public static dynamic ConvertTo<T>(this object value)
+        {
+           return ConvertTo(value, typeof(T));
         }
     }
 }

@@ -75,14 +75,18 @@
   </Choose>
   <ItemGroup>
     <Compile Include="Attributes\InjectAdditionalClaimTests.cs" />
+    <Compile Include="Attributes\OnValidationFailTests.cs" />
     <Compile Include="Attributes\RequiredTests.cs" />
     <Compile Include="Attributes\VerifyClaimTests.cs" />
     <Compile Include="Attributes\VerifyHeaderTests.cs" />
     <Compile Include="JotEventTests.cs" />
     <Compile Include="JotGeneralTests.cs" />
+    <Compile Include="JotProviderTests.cs" />
+    <Compile Include="JotTokenTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Rules\JotDefaultRulesTests.cs" />
     <Compile Include="Rules\RfcSpecRulesTests.cs" />
+    <Compile Include="UnixTimeProviderTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Jot.Tests.Common\Jot.Tests.Common.csproj">

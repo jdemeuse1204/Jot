@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using Jot.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Shouldly;
 using Jot.Time;
@@ -134,17 +133,17 @@ namespace Jot.Tests
                 var jot = new JotProvider();
 
                 var payload = new Dictionary<string, object>
-            {
-                {"iat", 0},
-                {"exp", 0},
-                {"rol", "sdf"},
-                {"jti", ""},
-                {"iss", ""},
-                {"aud", ""},
-                {"nbf", ""},
-                {"sub", ""},
-                {"usr", ""}
-            };
+                {
+                    {"iat", 0},
+                    {"exp", 0},
+                    {"rol", "sdf"},
+                    {"jti", ""},
+                    {"iss", ""},
+                    {"aud", ""},
+                    {"nbf", ""},
+                    {"sub", ""},
+                    {"usr", ""}
+                };
 
                 var token = jot.Create(payload);
                 var claim = token.GetClaim<string>("tst");
@@ -331,7 +330,7 @@ namespace Jot.Tests
 
             var validationResult = jot.Validate(jwt);
 
-            Assert.IsTrue(validationResult == TokenValidationResult.CreatedTimeCheckFailed);
+            Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }
 
         [TestMethod]
@@ -347,7 +346,7 @@ namespace Jot.Tests
 
             var validationResult = jot.Validate(jwt);
 
-            Assert.IsTrue(validationResult == TokenValidationResult.CreatedTimeCheckFailed);
+            Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }
 
         [TestMethod]
@@ -382,54 +381,30 @@ namespace Jot.Tests
             Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }
 
-
-
         [TestMethod]
-        public void TEST()
-        {
-            var jot = new JotProvider();
-
-            var payload = new Dictionary<string, object>
-            {
-                {"iat", null},
-                {"exp", _timeProvider.GetUnixTimestamp(30)},
-                {"rol", "Test"},
-                {"jti", Guid.Empty},
-                {"iss", "Test"},
-                {"aud", ""},
-                {"nbf", (_timeProvider.GetUnixTimestamp(0))},
-                {"sub", ""},
-            };
-
-            var token = jot.Create(payload);
-            token.SetClaim(JotDefaultClaims.JTI, Guid.Empty);
-
-            var jwt = jot.Encode(token);
-
-            var validationResult = jot.Validate<SomeRules>(jwt);
-
-            Assert.IsTrue(validationResult == TokenValidationResult.Passed);
-        }
-
-        [TestMethod]
-        public void TEST2()
+        public void MakeSureValidClaimCanBeDecoded()
         {
             var jot = new JotProvider(30, HashAlgorithm.HS256);
             var jwt = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOi0xLCJuYmYiOi0xfQ.ionM9Lyf-NmhfsFFgG5h8ZG6Esdv0Si6AS_sTHIArgg";
             var secret = "FLvSlAxz0AdX6o8ar_DRX5yEHaw_oB6cGhNq_3hMB_fzBnEpXvVGm2ZL2t6uK75P";
-            var validationResult = jot.Validate(jwt, secret);
+            var validationResult = jot.Validate<DecodeClaimRules>(jwt, secret);
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }
     }
 
-    class SomeRules : RfcSpecRules
+    class DecodeClaimRules
     {
-        [Required]
-        [VerifyClaim("jti")]
-        public TokenValidationResult ValidateJtiClaim(Guid jtiClaimValue, [InjectAdditionalClaim("usr")] string user)
+        [VerifyClaim("nbf")]
+        public TokenValidationResult ValidateNbfClaim(long value)
         {
-            return jtiClaimValue == Guid.Empty ? TokenValidationResult.Passed : TokenValidationResult.JtiValidateFailed;
+            return value == -1 ? TokenValidationResult.Passed : TokenValidationResult.NotBeforeFailed;
+        }
+
+        [VerifyClaim("iat")]
+        public TokenValidationResult ValidateIatClaim(long value)
+        {
+            return value == -1 ? TokenValidationResult.Passed : TokenValidationResult.CreatedTimeCheckFailed;
         }
     }
 }

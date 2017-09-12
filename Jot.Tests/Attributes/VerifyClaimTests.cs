@@ -73,6 +73,32 @@ namespace Jot.Tests.Attributes
             result.ShouldBe(TokenValidationResult.Passed);
             mockRules.Verify(w => w.Validate(It.IsAny<int>()), Times.Never);
         }
+
+        [TestMethod]
+        public void Should_ValidateClaimWhenClaimIsMissingAndThereIsARequiredAttribute_AndSucceed()
+        {
+            var mockRules = new Mock<TestConversionWhenClaimRequiredRules>();
+
+            mockRules.Setup(w => w.Validate(It.IsAny<int>())).Returns(TokenValidationResult.Passed);
+
+            var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+
+            result.ShouldBe(TokenValidationResult.ClaimMissing);
+            mockRules.Verify(w => w.Validate(It.IsAny<int>()), Times.Never);
+        }
+
+        [TestMethod]
+        public void Should_NotValidateClaimWhenAttributeIsMissing_AndSucceed()
+        {
+            var mockRules = new Mock<TestClaimVerificationWhenNoAttributePresent>();
+
+            mockRules.Setup(w => w.Validate(It.IsAny<int>())).Returns(TokenValidationResult.Passed);
+
+            var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+
+            result.ShouldBe(TokenValidationResult.Passed);
+            mockRules.Verify(w => w.Validate(It.IsAny<int>()), Times.Never);
+        }
     }
 
     public class TestGetClaimRules
@@ -96,6 +122,24 @@ namespace Jot.Tests.Attributes
     public class TestConversionWhenClaimMissingRules
     {
         [VerifyClaim("tst")]
+        public virtual TokenValidationResult Validate(int claimValue)
+        {
+            return TokenValidationResult.Passed;
+        }
+    }
+
+    public class TestConversionWhenClaimRequiredRules
+    {
+        [Required]
+        [VerifyClaim("tst")]
+        public virtual TokenValidationResult Validate(int claimValue)
+        {
+            return TokenValidationResult.Passed;
+        }
+    }
+
+    public class TestClaimVerificationWhenNoAttributePresent
+    {
         public virtual TokenValidationResult Validate(int claimValue)
         {
             return TokenValidationResult.Passed;

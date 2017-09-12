@@ -64,6 +64,45 @@ namespace Jot.Tests.Attributes
                 ex.Message.ShouldBe($"Cannot convert Header Claim {typeof(string).Name} to {typeof(int).Name}.  Header Claim Key: tst");
             }
         }
+
+        [TestMethod]
+        public void Should_ValidateClaimWhenHeaderIsMissingAndThereIsNoRequiredAttribute_AndSucceed()
+        {
+            var mockRules = new Mock<TestMissingHeaderRules>();
+
+            mockRules.Setup(w => w.Validate(It.IsAny<int>())).Returns(TokenValidationResult.Passed);
+
+            var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+
+            result.ShouldBe(TokenValidationResult.Passed);
+            mockRules.Verify(w => w.Validate(It.IsAny<int>()), Times.Never);
+        }
+
+        [TestMethod]
+        public void Should_ValidateClaimWhenHeaderIsMissingAndThereIsARequiredAttribute_AndSucceed()
+        {
+            var mockRules = new Mock<TestRequiredHeaderRules>();
+
+            mockRules.Setup(w => w.Validate(It.IsAny<int>())).Returns(TokenValidationResult.Passed);
+
+            var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+
+            result.ShouldBe(TokenValidationResult.HeaderMissing);
+            mockRules.Verify(w => w.Validate(It.IsAny<int>()), Times.Never);
+        }
+
+        [TestMethod]
+        public void Should_NotValidateHeaderClaimWhenAttributeIsMissing_AndSucceed()
+        {
+            var mockRules = new Mock<TestHeaderNoAttribute>();
+
+            mockRules.Setup(w => w.Validate(It.IsAny<int>())).Returns(TokenValidationResult.Passed);
+
+            var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+
+            result.ShouldBe(TokenValidationResult.Passed);
+            mockRules.Verify(w => w.Validate(It.IsAny<int>()), Times.Never);
+        }
     }
 
     public class TestGetHeaderRules
@@ -78,6 +117,33 @@ namespace Jot.Tests.Attributes
     public class TestGetHeaderConversionRules
     {
         [VerifyHeader("tst")]
+        public virtual TokenValidationResult Validate(int claimValue)
+        {
+            return claimValue == 1 ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
+        }
+    }
+
+    public class TestMissingHeaderRules
+    {
+        [VerifyHeader("aaa")]
+        public virtual TokenValidationResult Validate(int claimValue)
+        {
+            return claimValue == 1 ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
+        }
+    }
+
+    public class TestRequiredHeaderRules
+    {
+        [Required]
+        [VerifyHeader("aaa")]
+        public virtual TokenValidationResult Validate(int claimValue)
+        {
+            return claimValue == 1 ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
+        }
+    }
+
+    public class TestHeaderNoAttribute
+    {
         public virtual TokenValidationResult Validate(int claimValue)
         {
             return claimValue == 1 ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
