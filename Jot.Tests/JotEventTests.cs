@@ -90,30 +90,18 @@ namespace Jot.Tests
 
     public class TestValidateJtiRules
     {
-        private Guid _jti;
-
-        public TestValidateJtiRules(Guid jti)
-        {
-            _jti = jti;
-        }
-
-        public TestValidateJtiRules() { }
-
         [VerifyClaim("jti")]
-        public TokenValidationResult ValidateJti(Guid claimValue)
+        public TokenValidationResult ValidateJti(Guid claimValue, [InjectFromPayload("jti")] Guid jti)
         {
-            return claimValue == _jti ? TokenValidationResult.Passed : TokenValidationResult.JtiValidateFailed;
+            return claimValue == jti ? TokenValidationResult.Passed : TokenValidationResult.JtiValidateFailed;
         }
     }
 
     public class TestJtiValidationClaimTokenProvider : JotProvider
     {
-        private readonly Guid _jti;
-
-        public TestJtiValidationClaimTokenProvider(Guid jti)
+        public TestJtiValidationClaimTokenProvider()
                         : base(30, HashAlgorithm.HS512, false)
         {
-            _jti = jti;
         }
     }
     #endregion
@@ -217,33 +205,33 @@ namespace Jot.Tests
         public void MakeSureJtiValidationWorks()
         {
             var jti = Guid.NewGuid();
-            var jot = new TestJtiValidationClaimTokenProvider(jti);
+            var jot = new TestJtiValidationClaimTokenProvider();
 
             var token = jot.Create();
 
             token.SetClaim("jti", jti);
 
             var encodedToken = jot.Encode(token);
-            var validator = new TestValidateJtiRules(jti);
 
-            var result = jot.Validate(encodedToken, validator);
+            var result = jot.Validate<TestValidateJtiRules>(encodedToken, new { jti });
 
             Assert.AreEqual(result, TokenValidationResult.Passed);
         }
+
 
         [TestMethod]
         public void MakeSureJtiValidationWorks_PurposlyFail()
         {
             var jti = Guid.NewGuid();
-            var jot = new TestJtiValidationClaimTokenProvider(jti);
+            var jot = new TestJtiValidationClaimTokenProvider();
 
             var token = jot.Create();
 
-            token.SetClaim("jti", Guid.NewGuid());
+            token.SetClaim("jti", jti);
 
             var encodedToken = jot.Encode(token);
 
-            var result = jot.Validate<TestValidateJtiRules>(encodedToken);
+            var result = jot.Validate<TestValidateJtiRules>(encodedToken, new { jti = Guid.NewGuid() });
 
             Assert.AreEqual(result, TokenValidationResult.JtiValidateFailed);
         }

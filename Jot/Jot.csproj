@@ -41,6 +41,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Attributes\InjectFromPayload.cs" />
     <Compile Include="Attributes\InjectAdditionalClaim.cs" />
     <Compile Include="Attributes\IVerifiable.cs" />
     <Compile Include="Attributes\OnValidationFail.cs" />

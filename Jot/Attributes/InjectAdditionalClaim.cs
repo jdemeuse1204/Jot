@@ -7,12 +7,9 @@ namespace Jot.Attributes
     {
         public string Key { get; }
 
-        public bool IsRequired { get; }
-
-        public InjectAdditionalClaim(string claimKey, bool isRequired = false)
+        public InjectAdditionalClaim(string claimKey)
         {
             Key = claimKey;
-            IsRequired = isRequired;
         }
     }
 }

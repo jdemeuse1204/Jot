@@ -390,21 +390,22 @@ namespace Jot
 
         public TokenValidationResult Validate<T>(string encodedToken, string secret) where T : class
         {
-            return Validate(encodedToken, secret, Activator.CreateInstance<T>());
+            return Validate<T>(encodedToken, secret, null);
         }
 
-        public TokenValidationResult Validate<T>(string encodedToken, T validationRules) where T : class
+        public TokenValidationResult Validate<T>(string encodedToken, object payload) where T : class
         {
             var section = _getConfigurationSection();
 
-            return Validate(encodedToken, section.GetEncryptionSecret(), validationRules);
+            return Validate<T>(encodedToken, section.GetEncryptionSecret(), payload);
         }
 
-        public TokenValidationResult Validate<T>(string encodedToken, string secret, T validationRules) where T : class
+        public TokenValidationResult Validate<T>(string encodedToken, string secret, object payload) where T : class
         {
             var token = Decode(encodedToken);
             var jwt = token as JwtToken;
             var alreadyValidatedClaims = new List<string>();
+            T validationRules = Activator.CreateInstance<T>();
 
             if (jwt == null) return TokenValidationResult.TokenNotCorrectlyFormed;
 
@@ -427,12 +428,12 @@ namespace Jot
                 .FirstOrDefault(w => w.GetCustomAttributes(false).Any(x => x.GetType() == typeof(OnValidationFail)));
 
             // perform all claim checks
-            var claimChecks = ExecuteChecks<T, VerifyClaim>(claimValidationMethods, onFail, token, validationRules);
+            var claimChecks = ExecuteChecks<T, VerifyClaim>(claimValidationMethods, onFail, token, payload, validationRules);
 
             if (claimChecks != TokenValidationResult.Passed) { return claimChecks; }
 
             // perform all header checks
-            return ExecuteChecks<T, VerifyHeader>(headerValidationMethods, onFail, token, validationRules);
+            return ExecuteChecks<T, VerifyHeader>(headerValidationMethods, onFail, token, payload, validationRules);
         }
 
         private bool ClaimExists(IJotToken token, VerifyClaim claimAttribute)
@@ -455,7 +456,7 @@ namespace Jot
             return token.GetHeader(headerAttribute.Key);
         }
 
-        private TokenValidationResult ExecuteChecks<T, K>(List<MethodInfo> checks, MethodInfo onFail, IJotToken token, T validator) where T : class where K : IVerifiable
+        private TokenValidationResult ExecuteChecks<T, K>(List<MethodInfo> checks, MethodInfo onFail, IJotToken token, object payload, T validator) where T : class where K : IVerifiable
         {
             var result = TokenValidationResult.Passed;
 
@@ -482,8 +483,8 @@ namespace Jot
 
                 var claimOrHeaderValue = GetClaimValue(token, claimOrHeader as dynamic);
                 var parameters = check.GetParameters().ToList();
-                var claimParameter = parameters.Where(w => w.GetCustomAttributes(false).All(x => x.GetType() != typeof(InjectAdditionalClaim))).ToList();
-                var additionalParameters = parameters.Where(w => w.GetCustomAttributes(false).Any(x => x.GetType() == typeof(InjectAdditionalClaim))).ToList();
+                var claimParameter = parameters.Where(w => w.GetCustomAttributes(false).All(x => x.GetType() != typeof(InjectAdditionalClaim) && x.GetType() != typeof(InjectFromPayload))).ToList();
+                var additionalParameters = parameters.Where(w => w.GetCustomAttributes(false).Any(x => x.GetType() == typeof(InjectAdditionalClaim) || x.GetType() == typeof(InjectFromPayload))).ToList();
 
                 if (claimParameter.Count != 1)
                 {
@@ -511,7 +512,15 @@ namespace Jot
                     }
                 }
 
-                List<object> methodParameters = additionalParameters.Select(w => GetAdditionalParameterValue<K>(w, token)).ToList();
+                string missingClaimKey;
+                List<object> methodParameters = GetMethodParameters<K>(additionalParameters, token, payload, out missingClaimKey);
+
+                // missing claim class?
+                if (!string.IsNullOrEmpty(missingClaimKey))
+                {
+                    TryInvokeOnFail(validator, onFail, result, missingClaimKey, null);
+                    return TokenValidationResult.ClaimMissing;
+                }
 
                 var convertedValue = claimOrHeaderValue == null ? null : ConvertClaimValue(parameters[0], claimOrHeader.Key, claimOrHeaderValue, claimOrHeader as dynamic);
                 methodParameters.Insert(0, (dynamic)convertedValue);
@@ -528,18 +537,68 @@ namespace Jot
             return result;
         }
 
-        private dynamic GetAdditionalParameterValue<K>(ParameterInfo parameter, IJotToken token) where K : IVerifiable
+        private List<object> GetMethodParameters<K>(List<ParameterInfo> parameters, IJotToken token, object payload, out string missingKey) where K : IVerifiable
         {
-            var attribute = (InjectAdditionalClaim)parameter.GetCustomAttributes(false).First(w => w.GetType() == typeof(InjectAdditionalClaim));
-            var claimOrHeaderExists = typeof(K) == typeof(VerifyClaim) ? token.ClaimExists(attribute.Key) : token.HeaderExists(attribute.Key);
+            missingKey = string.Empty;
+            var additionalParameters = parameters.Select(w => new
+            {
+                Parameter = w,
+                Attribute = w.GetCustomAttributes(false).First(x => x.GetType() == typeof(InjectAdditionalClaim) || x.GetType() == typeof(InjectFromPayload))
+            }).ToList();
+            List<object> methodParameters = new List<object>();
+
+            foreach (var item in additionalParameters)
+            {
+                if (item.Attribute is InjectAdditionalClaim)
+                {
+                    bool claimOrHeaderExists;
+                    var injectableAdditionalClaimAttribute = (InjectAdditionalClaim)item.Attribute;
+                    methodParameters.Add(GetAdditionalParameterValue<K>(item.Parameter, token, injectableAdditionalClaimAttribute, out claimOrHeaderExists));
+
+                    if (!claimOrHeaderExists && string.IsNullOrEmpty(missingKey)) { missingKey = injectableAdditionalClaimAttribute.Key; }
+                    continue;
+                }
+
+                methodParameters.Add(GetAdditionalParameterValue(item.Parameter, (InjectFromPayload)item.Attribute, payload));
+            }
+
+            return methodParameters;
+        }
+
+        private dynamic GetAdditionalParameterValue(ParameterInfo parameter, InjectFromPayload attribute, object payload)
+        {
+            if (payload == null)
+            {
+                throw new JotException("Payload is null, cannot find properties on a null payload.");
+            }
+
+            var property = payload.GetType().GetProperty(attribute.PropertyName);
+            
+            if(property == null)
+            {
+                throw new JotException($"Payload is missing property.  Property Name: {attribute.PropertyName}");
+            }
+
+            object value = null;
+
+            try
+            {
+                value = property.GetValue(payload, null);
+
+                return value.ConvertTo(parameter.GetParameterType());
+            }
+            catch (Exception ex)
+            {
+                throw new JotException($"Cannot convert Payload property {attribute.PropertyName} from {value.GetType().Name} to {parameter.GetParameterType().Name}.  Payload Property Name: {attribute.PropertyName}");
+            }
+        }
+
+        private dynamic GetAdditionalParameterValue<K>(ParameterInfo parameter, IJotToken token, InjectAdditionalClaim attribute, out bool claimOrHeaderExists) where K : IVerifiable
+        {
+            claimOrHeaderExists = typeof(K) == typeof(VerifyClaim) ? token.ClaimExists(attribute.Key) : token.HeaderExists(attribute.Key);
 
             if (!claimOrHeaderExists)
             {
-                if (attribute.IsRequired)
-                {
-                    throw new JotException($"InjectAdditionalClaim error. Required claim key is missing from token.  Claim Key: {attribute.Key}");
-                }
-
                 return null;
             }
 
@@ -770,7 +829,7 @@ namespace Jot
                     }
                     throw ex;
                 }
-                
+
             }
         }
 

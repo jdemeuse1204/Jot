@@ -391,6 +391,64 @@ namespace Jot.Tests
 
             Assert.IsTrue(validationResult == TokenValidationResult.Passed);
         }
+
+        [TestMethod]
+        public void MakeSureRulesFromInheritedClassesGetRun()
+        {
+            var jot = new JotProvider(_timeProvider);
+
+            var token = jot.Create();
+
+            token.SetClaim("tst", "e");
+
+            var jwt = jot.Encode(token);
+
+            var validationResult = jot.Validate<InheritedRules>(jwt);
+
+            Assert.IsTrue(validationResult == TokenValidationResult.CustomCheckFailed);
+            BaseRules.FailRunCount.ShouldBe(1);
+            InheritedRules.ValidateRunCount.ShouldBe(1);
+        }
+
+        [TestMethod]
+        public void MakeSureBaseRulesFromInheritedClassesGetRun()
+        {
+            var jot = new JotProvider(_timeProvider);
+
+            var token = jot.Create();
+
+            token.SetClaim("tst", "test");
+            token.SetClaim("exp", 0);
+
+            var jwt = jot.Encode(token);
+
+            var validationResult = jot.Validate<InheritedRules>(jwt);
+
+            Assert.IsTrue(validationResult == TokenValidationResult.TokenExpired);
+        }
+    }
+
+    abstract class BaseRules : JotDefaultRules
+    {
+        public static int FailRunCount { get; set; }
+
+        [OnValidationFail]
+        public void Fail(TokenValidationResult result, string claimKey, object claimValue)
+        {
+            FailRunCount++;
+        }
+    }
+
+    class InheritedRules : BaseRules
+    {
+        public static int ValidateRunCount { get; set; }
+
+        [VerifyClaim("tst")]
+        public TokenValidationResult ValidateNbfClaim(string value)
+        {
+            ValidateRunCount++;
+            return value == "test" ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
+        }
     }
 
     class DecodeClaimRules

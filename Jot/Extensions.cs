@@ -18,6 +18,8 @@ namespace Jot
 
         public static dynamic ConvertTo(this object value, Type type)
         {
+            if (value.GetType() == type) return value;
+
             return (dynamic)TypeDescriptor.GetConverter(type).ConvertFrom(value.ToString());
         }
 

@@ -34,156 +34,184 @@ namespace Jot.Tests.Attributes
         [TestMethod]
         public void Should_OnFailShouldBeInvokedWhenValidationOfAClaimFails_AndSucceed()
         {
-            var rules = new Mock<OnValidationFailRules>();
+            var result = _provider.Validate<OnValidationFailRules>(_encodedToken, _secret);
 
-            rules.Setup(w => w.Validate(It.IsAny<long>())).Returns(TokenValidationResult.ClaimMissing);
-            rules.Setup(w => w.Fail(It.IsAny<TokenValidationResult>(), It.IsAny<string>(), It.IsAny<object>()));
-
-            var result = _provider.Validate(_encodedToken, _secret, rules.Object);
-
+            OnValidationFailRules.FailRunCount.ShouldBe(1);
+            OnValidationFailRules.ValidateRunCount.ShouldBe(1);
             result.ShouldBe(TokenValidationResult.ClaimMissing);
-            rules.Verify(w => w.Validate(It.IsAny<long>()), Times.Once);
-            rules.Verify(w => w.Fail(It.IsAny<TokenValidationResult>(), It.IsAny<string>(), It.IsAny<object>()), Times.Once);
         }
 
 
         [TestMethod]
         public void Should_OnFailShouldBeWhenClaimIsMissingAndClaimIsRequired_AndSucceed()
         {
-            var rules = new Mock<OnValidationFailClaimMissingRules>();
+            var result = _provider.Validate<OnValidationFailClaimMissingRules>(_encodedToken, _secret);
 
-            rules.Setup(w => w.Validate(It.IsAny<long>())).Returns(TokenValidationResult.ClaimMissing);
-            rules.Setup(w => w.Fail(It.IsAny<TokenValidationResult>(), It.IsAny<string>(), It.IsAny<object>()));
-
-            var result = _provider.Validate(_encodedToken, _secret, rules.Object);
-
+            OnValidationFailClaimMissingRules.ValidateRunCount.ShouldBe(0);
+            OnValidationFailClaimMissingRules.FailRunCount.ShouldBe(1);
             result.ShouldBe(TokenValidationResult.ClaimMissing);
-            rules.Verify(w => w.Validate(It.IsAny<long>()), Times.Never);
-            rules.Verify(w => w.Fail(It.IsAny<TokenValidationResult>(), It.IsAny<string>(), It.IsAny<object>()), Times.Once);
         }
 
 
         [TestMethod]
         public void Should_OnFailShouldNotBeInvokesWhenClaimIsMissingAndClaimIsNotRequired_AndSucceed()
         {
-            var rules = new Mock<OnValidationFailClaimMissingAndNotRequiredRules>();
-
-            rules.Setup(w => w.Validate(It.IsAny<long>())).Returns(TokenValidationResult.ClaimMissing);
-            rules.Setup(w => w.Fail(It.IsAny<TokenValidationResult>(), It.IsAny<string>(), It.IsAny<object>()));
-
-            var result = _provider.Validate(_encodedToken, _secret, rules.Object);
+            var result = _provider.Validate<OnValidationFailClaimMissingAndNotRequiredRules>(_encodedToken, _secret);
 
             result.ShouldBe(TokenValidationResult.Passed);
-            rules.Verify(w => w.Validate(It.IsAny<long>()), Times.Never);
-            rules.Verify(w => w.Fail(It.IsAny<TokenValidationResult>(), It.IsAny<string>(), It.IsAny<object>()), Times.Never);
+            OnValidationFailClaimMissingAndNotRequiredRules.ValidateRunCount.ShouldBe(0);
+            OnValidationFailClaimMissingAndNotRequiredRules.FailRunCount.ShouldBe(0);
         }
 
         [TestMethod]
         public void Should_OnFailShouldBeWhenHeaderIsMissingAndHeaderIsRequired_AndSucceed()
         {
-            var rules = new Mock<OnValidationFailHeaderMissingRules>();
-
-            rules.Setup(w => w.Validate(It.IsAny<long>())).Returns(TokenValidationResult.ClaimMissing);
-            rules.Setup(w => w.Fail(It.IsAny<TokenValidationResult>(), It.IsAny<string>(), It.IsAny<object>()));
-
-            var result = _provider.Validate(_encodedToken, _secret, rules.Object);
+            var result = _provider.Validate<OnValidationFailHeaderMissingRules>(_encodedToken, _secret);
 
             result.ShouldBe(TokenValidationResult.HeaderMissing);
-            rules.Verify(w => w.Validate(It.IsAny<long>()), Times.Never);
-            rules.Verify(w => w.Fail(It.IsAny<TokenValidationResult>(), It.IsAny<string>(), It.IsAny<object>()), Times.Once);
+            OnValidationFailHeaderMissingRules.ValidateRunCount.ShouldBe(0);
+            OnValidationFailHeaderMissingRules.FailRunCount.ShouldBe(1);
         }
 
         [TestMethod]
         public void Should_OnFailShouldNotBeInvokesWhenHeaderIsMissingAndHeaderIsNotRequired_AndSucceed()
         {
-            var rules = new Mock<OnValidationFailHeaderMissingAndNotRequiredRules>();
-
-            rules.Setup(w => w.Validate(It.IsAny<long>())).Returns(TokenValidationResult.ClaimMissing);
-            rules.Setup(w => w.Fail(It.IsAny<TokenValidationResult>(), It.IsAny<string>(), It.IsAny<object>()));
-
-            var result = _provider.Validate(_encodedToken, _secret, rules.Object);
+            var result = _provider.Validate<OnValidationFailHeaderMissingAndNotRequiredRules>(_encodedToken, _secret);
 
             result.ShouldBe(TokenValidationResult.Passed);
-            rules.Verify(w => w.Validate(It.IsAny<long>()), Times.Never);
-            rules.Verify(w => w.Fail(It.IsAny<TokenValidationResult>(), It.IsAny<string>(), It.IsAny<object>()), Times.Never);
+            OnValidationFailHeaderMissingAndNotRequiredRules.FailRunCount.ShouldBe(0);
+            OnValidationFailHeaderMissingAndNotRequiredRules.ValidateRunCount.ShouldBe(0);
+        }
+
+        [TestMethod]
+        public void Should_OnFailShouldCallOnValidationFailWhenItsInInheritedClass_AndSucceed()
+        {
+            var result = _provider.Validate<OnValidationFailShouldInherit>(_encodedToken, _secret);
+
+            result.ShouldBe(TokenValidationResult.CustomCheckFailed);
+            OnValidationFailShouldInheritFromAbstract.FailRunCount.ShouldBe(1);
+            OnValidationFailShouldInherit.ValidateRunCount.ShouldBe(1);
         }
     }
 
     public class OnValidationFailRules
     {
+        public static int ValidateRunCount { get; set; }
+        public static int FailRunCount { get; set; }
+
         [Required]
         [VerifyClaim("tst")]
         public virtual TokenValidationResult Validate(long claimValue)
         {
+            ValidateRunCount++;
             return claimValue == 1 ? TokenValidationResult.ClaimMissing : TokenValidationResult.Passed;
         }
 
         [OnValidationFail]
         public virtual void Fail(TokenValidationResult result, string claimKey, object claimValue)
         {
-            
+            FailRunCount++;
         }
     }
 
     public class OnValidationFailClaimMissingRules
     {
+        public static int ValidateRunCount { get; set; }
+        public static int FailRunCount { get; set; }
+
         [Required]
         [VerifyClaim("aaa")]
         public virtual TokenValidationResult Validate(long claimValue)
         {
+            ValidateRunCount++;
             return claimValue == 1 ? TokenValidationResult.ClaimMissing : TokenValidationResult.Passed;
         }
 
         [OnValidationFail]
         public virtual void Fail(TokenValidationResult result, string claimKey, object claimValue)
         {
-
+            FailRunCount++;
         }
     }
 
     public class OnValidationFailClaimMissingAndNotRequiredRules
     {
+        public static int ValidateRunCount { get; set; }
+        public static int FailRunCount { get; set; }
+
         [VerifyClaim("aaa")]
         public virtual TokenValidationResult Validate(long claimValue)
         {
+            ValidateRunCount++;
             return claimValue == 1 ? TokenValidationResult.ClaimMissing : TokenValidationResult.Passed;
         }
 
         [OnValidationFail]
         public virtual void Fail(TokenValidationResult result, string claimKey, object claimValue)
         {
-
+            FailRunCount++;
         }
     }
 
     public class OnValidationFailHeaderMissingRules
     {
+        public static int ValidateRunCount { get; set; }
+        public static int FailRunCount { get; set; }
+
         [Required]
         [VerifyHeader("aaa")]
         public virtual TokenValidationResult Validate(long claimValue)
         {
+            ValidateRunCount++;
             return claimValue == 1 ? TokenValidationResult.ClaimMissing : TokenValidationResult.Passed;
         }
 
         [OnValidationFail]
         public virtual void Fail(TokenValidationResult result, string claimKey, object claimValue)
         {
-
+            FailRunCount++;
         }
     }
 
     public class OnValidationFailHeaderMissingAndNotRequiredRules
     {
+        public static int ValidateRunCount { get; set; }
+        public static int FailRunCount { get; set; }
+
         [VerifyClaim("aaa")]
         public virtual TokenValidationResult Validate(long claimValue)
         {
+            ValidateRunCount++;
             return claimValue == 1 ? TokenValidationResult.ClaimMissing : TokenValidationResult.Passed;
         }
 
         [OnValidationFail]
         public virtual void Fail(TokenValidationResult result, string claimKey, object claimValue)
         {
+            FailRunCount++;
+        }
+    }
 
+    public class OnValidationFailShouldInherit : OnValidationFailShouldInheritFromAbstract
+    {
+        public static int ValidateRunCount { get; set; }
+
+        [VerifyClaim("tst")]
+        public virtual TokenValidationResult Validate(long claimValue)
+        {
+            ValidateRunCount++;
+            return claimValue == 2L ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
+        }
+    }
+
+    public abstract class OnValidationFailShouldInheritFromAbstract
+    {
+        public static int FailRunCount { get; set; }
+
+        [OnValidationFail]
+        public virtual void Fail(TokenValidationResult result, string claimKey, object claimValue)
+        {
+            FailRunCount++;
         }
     }
 }

@@ -75,6 +75,7 @@
   </Choose>
   <ItemGroup>
     <Compile Include="Attributes\InjectAdditionalClaimTests.cs" />
+    <Compile Include="Attributes\InjectFromPayloadTests.cs" />
     <Compile Include="Attributes\OnValidationFailTests.cs" />
     <Compile Include="Attributes\RequiredTests.cs" />
     <Compile Include="Attributes\VerifyClaimTests.cs" />

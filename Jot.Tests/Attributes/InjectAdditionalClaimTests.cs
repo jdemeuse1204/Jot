@@ -51,6 +51,14 @@ namespace Jot.Tests.Attributes
                 ex.Message.ShouldBe($"Cannot convert Additional Injected Claim {typeof(string).Name} to {typeof(int).Name}.  Additional Injected Claim Key: usr");
             }
         }
+
+        [TestMethod]
+        public void Should_FailWhenInjectableClaimIsMissing()
+        {
+            var result = _provider.Validate<TestFailInjectAdditionalClaimMissingRules>(_encodedToken, _secret);
+
+            result.ShouldBe(TokenValidationResult.ClaimMissing);
+        }
     }
 
     public class TestConversionInjectAdditionalClaimRules
@@ -66,6 +74,15 @@ namespace Jot.Tests.Attributes
     {
         [VerifyClaim("iss")]
         public virtual TokenValidationResult Validate(string claimValue, [InjectAdditionalClaim("usr")] int otherClaimValue)
+        {
+            return TokenValidationResult.Passed;
+        }
+    }
+
+    public class TestFailInjectAdditionalClaimMissingRules
+    {
+        [VerifyClaim("iss")]
+        public virtual TokenValidationResult Validate(string claimValue, [InjectAdditionalClaim("aaa")] int otherClaimValue)
         {
             return TokenValidationResult.Passed;
         }

@@ -34,14 +34,10 @@ namespace Jot.Tests.Attributes
         [TestMethod]
         public void Should_ValidateClaim_AndSucceed()
         {
-            var mockRules = new Mock<TestGetClaimRules>();
-
-            mockRules.Setup(w => w.Validate(It.IsAny<string>())).Returns(TokenValidationResult.Passed);
-
-            var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+            var result = _provider.Validate<TestGetClaimRules>(_encodedToken, _secret);
 
             result.ShouldBe(TokenValidationResult.Passed);
-            mockRules.Verify(w => w.Validate(It.IsAny<string>()));
+            TestGetClaimRules.ValidateRunCount.ShouldBe(1);
         }
 
         [TestMethod]
@@ -49,9 +45,7 @@ namespace Jot.Tests.Attributes
         {
             try
             {
-                var mockRules = new Mock<TestConversionRules>();
-
-                var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+                var result = _provider.Validate<TestConversionRules>(_encodedToken, _secret);
 
                 result.ShouldBe(TokenValidationResult.Passed);
             }
@@ -64,84 +58,87 @@ namespace Jot.Tests.Attributes
         [TestMethod]
         public void Should_ValidateClaimWhenClaimIsMissingAndThereIsNoRequiredAttribute_AndSucceed()
         {
-            var mockRules = new Mock<TestConversionWhenClaimMissingRules>();
-
-            mockRules.Setup(w => w.Validate(It.IsAny<int>())).Returns(TokenValidationResult.Passed);
-
-            var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+            var result = _provider.Validate<TestConversionWhenClaimMissingRules>(_encodedToken, _secret);
 
             result.ShouldBe(TokenValidationResult.Passed);
-            mockRules.Verify(w => w.Validate(It.IsAny<int>()), Times.Never);
+            TestConversionWhenClaimMissingRules.ValidateRunCount.ShouldBe(0);
         }
 
         [TestMethod]
         public void Should_ValidateClaimWhenClaimIsMissingAndThereIsARequiredAttribute_AndSucceed()
         {
-            var mockRules = new Mock<TestConversionWhenClaimRequiredRules>();
-
-            mockRules.Setup(w => w.Validate(It.IsAny<int>())).Returns(TokenValidationResult.Passed);
-
-            var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+            var result = _provider.Validate<TestConversionWhenClaimRequiredRules>(_encodedToken, _secret);
 
             result.ShouldBe(TokenValidationResult.ClaimMissing);
-            mockRules.Verify(w => w.Validate(It.IsAny<int>()), Times.Never);
+            TestConversionWhenClaimRequiredRules.ValidateRunCount.ShouldBe(0);
         }
 
         [TestMethod]
         public void Should_NotValidateClaimWhenAttributeIsMissing_AndSucceed()
         {
-            var mockRules = new Mock<TestClaimVerificationWhenNoAttributePresent>();
-
-            mockRules.Setup(w => w.Validate(It.IsAny<int>())).Returns(TokenValidationResult.Passed);
-
-            var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+            var result = _provider.Validate<TestClaimVerificationWhenNoAttributePresent>(_encodedToken, _secret);
 
             result.ShouldBe(TokenValidationResult.Passed);
-            mockRules.Verify(w => w.Validate(It.IsAny<int>()), Times.Never);
+            TestClaimVerificationWhenNoAttributePresent.ValidateRunCount.ShouldBe(0);
         }
     }
 
     public class TestGetClaimRules
     {
+        public static int ValidateRunCount { get; set; }
+
         [VerifyClaim("iss")]
         public virtual TokenValidationResult Validate(string claimValue)
         {
+            ValidateRunCount++;
             return !string.IsNullOrEmpty(claimValue) ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
         }
     }
 
     public class TestConversionRules
     {
+        public static int ValidateRunCount { get; set; }
+
         [VerifyClaim("iss")]
         public virtual TokenValidationResult Validate(int claimValue)
         {
+            ValidateRunCount++;
             return TokenValidationResult.Passed;
         }
     }
 
     public class TestConversionWhenClaimMissingRules
     {
+        public static int ValidateRunCount { get; set; }
+
         [VerifyClaim("tst")]
         public virtual TokenValidationResult Validate(int claimValue)
         {
+            ValidateRunCount++;
             return TokenValidationResult.Passed;
         }
     }
 
     public class TestConversionWhenClaimRequiredRules
     {
+        public static int ValidateRunCount { get; set; }
+
         [Required]
         [VerifyClaim("tst")]
         public virtual TokenValidationResult Validate(int claimValue)
         {
+            ValidateRunCount++;
             return TokenValidationResult.Passed;
         }
     }
 
     public class TestClaimVerificationWhenNoAttributePresent
     {
+        public static int ValidateRunCount { get; set; }
+
         public virtual TokenValidationResult Validate(int claimValue)
         {
+            ValidateRunCount++;
             return TokenValidationResult.Passed;
         }
     }

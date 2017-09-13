@@ -38,14 +38,10 @@ namespace Jot.Tests.Attributes
         [TestMethod]
         public void Should_ValidateClaim_AndSucceed()
         {
-            var mockRules = new Mock<TestGetHeaderRules>();
-
-            mockRules.Setup(w => w.Validate(It.IsAny<string>())).Returns(TokenValidationResult.Passed);
-
-            var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+            var result = _provider.Validate<TestGetHeaderRules>(_encodedToken, _secret);
 
             result.ShouldBe(TokenValidationResult.Passed);
-            mockRules.Verify(w => w.Validate(It.IsAny<string>()));
+            TestGetHeaderRules.ValidateRunCount.ShouldBe(1);
         }
 
         [TestMethod]
@@ -53,9 +49,7 @@ namespace Jot.Tests.Attributes
         {
             try
             {
-                var mockRules = new Mock<TestGetHeaderConversionRules>();
-
-                var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+                var result = _provider.Validate<TestGetHeaderConversionRules>(_encodedToken, _secret);
 
                 result.ShouldBe(TokenValidationResult.Passed);
             }
@@ -68,48 +62,39 @@ namespace Jot.Tests.Attributes
         [TestMethod]
         public void Should_ValidateClaimWhenHeaderIsMissingAndThereIsNoRequiredAttribute_AndSucceed()
         {
-            var mockRules = new Mock<TestMissingHeaderRules>();
-
-            mockRules.Setup(w => w.Validate(It.IsAny<int>())).Returns(TokenValidationResult.Passed);
-
-            var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+            var result = _provider.Validate<TestMissingHeaderRules>(_encodedToken, _secret);
 
             result.ShouldBe(TokenValidationResult.Passed);
-            mockRules.Verify(w => w.Validate(It.IsAny<int>()), Times.Never);
+            TestMissingHeaderRules.ValidateRunCount.ShouldBe(0);
         }
 
         [TestMethod]
         public void Should_ValidateClaimWhenHeaderIsMissingAndThereIsARequiredAttribute_AndSucceed()
         {
-            var mockRules = new Mock<TestRequiredHeaderRules>();
-
-            mockRules.Setup(w => w.Validate(It.IsAny<int>())).Returns(TokenValidationResult.Passed);
-
-            var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+            var result = _provider.Validate<TestRequiredHeaderRules>(_encodedToken, _secret);
 
             result.ShouldBe(TokenValidationResult.HeaderMissing);
-            mockRules.Verify(w => w.Validate(It.IsAny<int>()), Times.Never);
+            TestRequiredHeaderRules.ValidateRunCount.ShouldBe(0);
         }
 
         [TestMethod]
         public void Should_NotValidateHeaderClaimWhenAttributeIsMissing_AndSucceed()
         {
-            var mockRules = new Mock<TestHeaderNoAttribute>();
-
-            mockRules.Setup(w => w.Validate(It.IsAny<int>())).Returns(TokenValidationResult.Passed);
-
-            var result = _provider.Validate(_encodedToken, _secret, mockRules.Object);
+            var result = _provider.Validate<TestHeaderNoAttribute>(_encodedToken, _secret);
 
             result.ShouldBe(TokenValidationResult.Passed);
-            mockRules.Verify(w => w.Validate(It.IsAny<int>()), Times.Never);
+            TestHeaderNoAttribute.ValidateRunCount.ShouldBe(0);
         }
     }
 
     public class TestGetHeaderRules
     {
+        public static int ValidateRunCount { get; set; }
+
         [VerifyHeader("tst")]
         public virtual TokenValidationResult Validate(string claimValue)
         {
+            ValidateRunCount++;
             return claimValue == "test" ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
         }
     }
@@ -125,27 +110,36 @@ namespace Jot.Tests.Attributes
 
     public class TestMissingHeaderRules
     {
+        public static int ValidateRunCount { get; set; }
+        
         [VerifyHeader("aaa")]
         public virtual TokenValidationResult Validate(int claimValue)
         {
+            ValidateRunCount++;
             return claimValue == 1 ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
         }
     }
 
     public class TestRequiredHeaderRules
     {
+        public static int ValidateRunCount { get; set; }
+
         [Required]
         [VerifyHeader("aaa")]
         public virtual TokenValidationResult Validate(int claimValue)
         {
+            ValidateRunCount++;
             return claimValue == 1 ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
         }
     }
 
     public class TestHeaderNoAttribute
     {
+        public static int ValidateRunCount { get; set; }
+
         public virtual TokenValidationResult Validate(int claimValue)
         {
+            ValidateRunCount++;
             return claimValue == 1 ? TokenValidationResult.Passed : TokenValidationResult.CustomCheckFailed;
         }
     }
