@@ -40,7 +40,7 @@ namespace Jot.Tests.Attributes
         }
 
         [TestMethod]
-        public void Should_FailWhenConvertingInjectableClaimToTheWeron()
+        public void Should_FailWhenConvertingInjectableClaimToTheWrongType()
         {
             try
             {

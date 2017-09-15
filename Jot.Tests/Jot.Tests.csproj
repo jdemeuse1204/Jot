@@ -74,6 +74,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="AttributeInheritanceTests.cs" />
     <Compile Include="Attributes\InjectAdditionalClaimTests.cs" />
     <Compile Include="Attributes\InjectFromPayloadTests.cs" />
     <Compile Include="Attributes\OnValidationFailTests.cs" />

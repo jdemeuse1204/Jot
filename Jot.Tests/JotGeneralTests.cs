@@ -99,6 +99,183 @@ namespace Jot.Tests
         }
 
         [TestMethod]
+        public void ShouldGetClaimAndReturnNullWhenItsNull()
+        {
+            var jot = new JotProvider();
+
+            var payload = new Dictionary<string, object>
+            {
+                {"iat", 0},
+                {"exp", 0},
+                {"rol", null },
+                {"jti", ""},
+                {"iss", ""},
+                {"aud", ""},
+                {"nbf", ""},
+                {"sub", ""},
+                {"usr", ""}
+            };
+
+            var token = jot.Create(payload);
+
+            var role = token.GetClaim<string>("rol");
+
+            role.ShouldBe(null);
+        }
+
+        [TestMethod]
+        public void ShouldGetHeaderAndReturnNullWhenItsNull()
+        {
+            var jot = new JotProvider();
+
+            var payload = new Dictionary<string, object>
+            {
+                {"iat", 0},
+                {"exp", 0},
+                {"rol", null },
+                {"jti", ""},
+                {"iss", ""},
+                {"aud", ""},
+                {"nbf", ""},
+                {"sub", ""},
+                {"usr", ""}
+            };
+
+            var headers = new Dictionary<string, object>
+            {
+                { "tst", null }
+            };
+
+            var token = jot.Create(headers, payload);
+
+            var role = token.GetHeader<string>("tst");
+
+            role.ShouldBe(null);
+        }
+
+        [TestMethod]
+        public void ShouldGetHeaderAndReturnDefaultWhenItsNull()
+        {
+            var jot = new JotProvider();
+
+            var payload = new Dictionary<string, object>
+            {
+                {"iat", 0},
+                {"exp", 0},
+                {"rol", null },
+                {"jti", ""},
+                {"iss", ""},
+                {"aud", ""},
+                {"nbf", ""},
+                {"sub", ""},
+                {"usr", ""}
+            };
+
+            var headers = new Dictionary<string, object>
+            {
+                { "tst", null }
+            };
+
+            var token = jot.Create(headers, payload);
+
+            var role = token.GetHeaderOrDefault<int>("tst");
+
+            role.ShouldBe(0);
+        }
+
+        [TestMethod]
+        public void ShouldGetHeaderAndErrorBecauseNullsCannotBeConverted()
+        {
+            try
+            {
+                var jot = new JotProvider();
+
+                var payload = new Dictionary<string, object>
+                {
+                    {"iat", 0},
+                    {"exp", 0},
+                    {"rol", null },
+                    {"jti", ""},
+                    {"iss", ""},
+                    {"aud", ""},
+                    {"nbf", ""},
+                    {"sub", ""},
+                    {"usr", ""}
+                };
+
+                var headers = new Dictionary<string, object>
+                {
+                    { "tst", null }
+                };
+
+                var token = jot.Create(headers, payload);
+
+                var role = token.GetHeader<int>("tst");
+            }
+            catch (Exception ex)
+            {
+                ex.Message.ShouldBe($"Cannot convert null value.  Key: tst");
+            }
+        }
+
+        [TestMethod]
+        public void ShouldGetClaimAndReturnDefaultWhenItsNull()
+        {
+            var jot = new JotProvider();
+
+            var payload = new Dictionary<string, object>
+            {
+                {"iat", 0},
+                {"exp", 0},
+                {"rol", null },
+                {"jti", ""},
+                {"iss", ""},
+                {"aud", ""},
+                {"nbf", ""},
+                {"sub", ""},
+                {"usr", ""}
+            };
+
+            var token = jot.Create(payload);
+
+            var role = token.GetClaimOrDefault<int>("rol");
+
+            role.ShouldBe(0);
+        }
+
+        [TestMethod]
+        public void ShouldGetClaimAndErrorBecauseNullsCannotBeConverted()
+        {
+            try
+            {
+                var jot = new JotProvider();
+
+                var payload = new Dictionary<string, object>
+                {
+                    {"iat", 0},
+                    {"exp", 0},
+                    {"rol", null },
+                    {"jti", ""},
+                    {"iss", ""},
+                    {"aud", ""},
+                    {"nbf", ""},
+                    {"sub", ""},
+                    {"usr", ""}
+                };
+
+                var token = jot.Create(payload);
+
+                var role = token.GetClaim<int>("rol");
+
+                role.ShouldBe(0);
+            }
+            catch (Exception ex)
+            {
+                ex.Message.ShouldBe($"Cannot convert null value.  Key: rol");
+            }
+        }
+
+        [TestMethod]
         public void ShoulTrydGetClaim()
         {
             var jot = new JotProvider();
@@ -425,6 +602,27 @@ namespace Jot.Tests
             var validationResult = jot.Validate<InheritedRules>(jwt);
 
             Assert.IsTrue(validationResult == TokenValidationResult.TokenExpired);
+        }
+
+        [TestMethod]
+        public void Test()
+        {
+            var jot = new JotProvider(30, HashAlgorithm.HS512, true);
+
+            jot.OnGetGhostClaims += () =>
+            {
+                return new Dictionary<string, object>
+                {
+                    { "tst", "test" }
+                };
+            };
+
+            var token = jot.Create();
+            var encoded = jot.Encode(token);
+            var decoded = jot.Decode(encoded);
+            var validation = jot.Validate(encoded);
+
+            Assert.IsNotNull(token);
         }
     }
 

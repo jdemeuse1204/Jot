@@ -1,6 +1,6 @@
 ﻿using Jot.Time;
 
-namespace Jot.Rules
+namespace Jot.Rules.Verification
 {
     public abstract class RfcBaseRules
     {

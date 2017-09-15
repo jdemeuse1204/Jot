@@ -41,36 +41,55 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Attributes\AnonymouseAlgorithmInHeader.cs" />
+    <Compile Include="Attributes\HashAlgorithmType.cs" />
+    <Compile Include="Attributes\OnCreate.cs" />
+    <Compile Include="Attributes\OnDeserialize.cs" />
+    <Compile Include="Attributes\OnGetSecret.cs" />
+    <Compile Include="Attributes\OnGetUnixTimeStamp.cs" />
+    <Compile Include="Attributes\OnHash.cs" />
     <Compile Include="Attributes\InjectFromPayload.cs" />
     <Compile Include="Attributes\InjectAdditionalClaim.cs" />
     <Compile Include="Attributes\IVerifiable.cs" />
+    <Compile Include="Attributes\OnGetGhostClaims.cs" />
+    <Compile Include="Attributes\OnSerialize.cs" />
     <Compile Include="Attributes\OnValidationFail.cs" />
+    <Compile Include="Attributes\TokenTimeout.cs" />
     <Compile Include="Attributes\VerifyClaim.cs" />
     <Compile Include="Attributes\Required.cs" />
     <Compile Include="Attributes\VerifyHeader.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="HashAlgorithm.cs" />
     <Compile Include="IJotToken.cs" />
-    <Compile Include="JotAuthConfigurationSection.cs" />
+    <Compile Include="JotBaseProvider.cs" />
+    <Compile Include="JotCreationHelper.cs" />
+    <Compile Include="JotCreationProvider.cs" />
     <Compile Include="JotDefaultClaims.cs" />
     <Compile Include="JotDefaultHeaders.cs" />
     <Compile Include="JotException.cs" />
     <Compile Include="JotProvider.cs" />
+    <Compile Include="JotValidationProvider.cs" />
+    <Compile Include="JwtToken.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Rules\Creation\BaseCreationRules.cs" />
+    <Compile Include="Rules\Creation\JotDefaultCreationRules.cs" />
+    <Compile Include="Serializer.cs" />
     <Compile Include="Time\ITimeProvider.cs" />
     <Compile Include="Time\IUnixTimeProvider.cs" />
     <Compile Include="Time\TimeProvider.cs" />
     <Compile Include="Time\UnixTimeProvider.cs" />
     <Compile Include="TokenValidationResult.cs" />
-    <Compile Include="Rules\JotDefaultRules.cs" />
-    <Compile Include="Rules\RfcBaseRules.cs" />
+    <Compile Include="Rules\Verification\JotDefaultRules.cs" />
+    <Compile Include="Rules\Verification\RfcBaseRules.cs" />
+    <Compile Include="UrlEncode.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Jot.licenseheader" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Rules\RfcSpecRules.cs" />
+    <Compile Include="Rules\Verification\RfcSpecRules.cs" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

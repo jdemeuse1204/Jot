@@ -8,7 +8,7 @@
 
 using Jot.Attributes;
 
-namespace Jot.Rules
+namespace Jot.Rules.Verification
 {
     public class JotDefaultRules : RfcBaseRules
     {

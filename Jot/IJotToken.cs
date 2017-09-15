@@ -12,6 +12,8 @@ namespace Jot
     {
         T GetClaim<T>(string claimKey);
 
+        T GetClaimOrDefault<T>(string claimKey);
+
         object GetClaim(string claimKey);
 
         void SetClaim(string claimKey, object value);
@@ -20,6 +22,8 @@ namespace Jot
 
 
         T GetHeader<T>(string headerKey);
+
+        T GetHeaderOrDefault<T>(string headerKey);
 
         object GetHeader(string headerKey);
 
