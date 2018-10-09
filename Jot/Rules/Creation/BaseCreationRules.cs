@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Jot.Rules.Creation
 {
-    class BaseCreationRules
+    public abstract class BaseCreationRules
     {
     }
 }

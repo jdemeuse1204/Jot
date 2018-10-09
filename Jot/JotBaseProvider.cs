@@ -8,22 +8,22 @@ using System.Text;
 
 namespace Jot
 {
-    internal class JotBaseProvider<T> where T : class
+    internal abstract class JotBaseProvider<T> where T : class
     {
         #region Properties and Fields
         protected readonly T RuleInstance;
-        private readonly MethodInfo _onHashMethod;
-        private readonly MethodInfo _onSerialize;
-        private readonly MethodInfo _onDeserialize;
-        private readonly MethodInfo _onGetGhostClaims;
-        private readonly string _secret;
-        private readonly HashAlgorithm? _hashAlgorithm;
-        private readonly IUnixTimeProvider _timeProvider;
+        protected readonly MethodInfo OnHashMethod;
+        protected readonly MethodInfo OnSerialize;
+        protected readonly MethodInfo OnDeserialize;
+        protected readonly MethodInfo OnGetGhostClaims;
+        protected readonly string Secret;
+        protected readonly HashAlgorithm? HashAlgorithm;
+        protected readonly IUnixTimeProvider TimeProvider;
 
         protected readonly IDictionary<HashAlgorithm, Func<string, byte[], byte[]>> HashAlgorithms = new Dictionary<HashAlgorithm, Func<string, byte[], byte[]>>
         {
             {
-                HashAlgorithm.HS256, (key, value) =>
+                Jot.HashAlgorithm.HS256, (key, value) =>
                 {
                     using (var sha = new HMACSHA256(Encoding.UTF8.GetBytes(key)))
                     {
@@ -32,7 +32,7 @@ namespace Jot
                 }
             },
             {
-                HashAlgorithm.HS384, (key, value) =>
+                Jot.HashAlgorithm.HS384, (key, value) =>
                 {
                     using (var sha = new HMACSHA384(Encoding.UTF8.GetBytes(key)))
                     {
@@ -41,7 +41,7 @@ namespace Jot
                 }
             },
             {
-                HashAlgorithm.HS512, (key, value) =>
+                Jot.HashAlgorithm.HS512, (key, value) =>
                 {
                     using (var sha = new HMACSHA512(Encoding.UTF8.GetBytes(key)))
                     {
@@ -56,31 +56,31 @@ namespace Jot
         public JotBaseProvider()
         {
             RuleInstance = Activator.CreateInstance<T>();
-            _onHashMethod = JotCreationHelper.GetOnHashMethod<T>();
-            _onSerialize = JotCreationHelper.GetOnSerializeMethod<T>();
-            _onDeserialize = JotCreationHelper.GetOnDeserializeMethod<T>();
-            _onGetGhostClaims = JotCreationHelper.GetOnGetGhostClaims<T>();
-            _hashAlgorithm = JotCreationHelper.GetHashAlgorithm<T>();
-            _secret = JotCreationHelper.GetSecret<T>(RuleInstance);
+            OnHashMethod = JotCreationHelper.GetOnHashMethod<T>();
+            OnSerialize = JotCreationHelper.GetOnSerializeMethod<T>();
+            OnDeserialize = JotCreationHelper.GetOnDeserializeMethod<T>();
+            OnGetGhostClaims = JotCreationHelper.GetOnGetGhostClaims<T>();
+            HashAlgorithm = JotCreationHelper.GetHashAlgorithm<T>();
+            Secret = JotCreationHelper.GetSecret<T>(RuleInstance);
 
-            if (_onHashMethod == null && _hashAlgorithm == null)
+            if (OnHashMethod == null && HashAlgorithm == null)
             {
                 throw new JotException($"Cannot find HashAlgorithm, please either decorate {typeof(T).Name} with the HashAlgorithmType attribute or add a method to {typeof(T).Name} and decorate that method with OnHash");
             }
 
-            _timeProvider = JotCreationHelper.GetOnGetUnixTimeProvider<T>(RuleInstance);
+            TimeProvider = JotCreationHelper.GetOnGetUnixTimeProvider<T>(RuleInstance);
         }
         #endregion  
 
         #region Object Serialization
         protected Dictionary<string, object> DecodeObject(string jsonString)
         {
-            return _onDeserialize != null ? _onDeserialize.Invoke<Dictionary<string, object>>(RuleInstance, new object[] { jsonString }) : Serializer.ToObject<Dictionary<string, object>>(jsonString);
+            return OnDeserialize != null ? OnDeserialize.Invoke<Dictionary<string, object>>(RuleInstance, new object[] { jsonString }) : Serializer.ToObject<Dictionary<string, object>>(jsonString);
         }
 
         protected string SerializeObject(object entity)
         {
-            return _onSerialize != null ? _onSerialize.Invoke<string>(RuleInstance, new object[] { entity }) : Serializer.ToJSON(entity);
+            return OnSerialize != null ? OnSerialize.Invoke<string>(RuleInstance, new object[] { entity }) : Serializer.ToJSON(entity);
         }
         #endregion
 
@@ -92,17 +92,17 @@ namespace Jot
 
             if (onHashMethod != null)
             {
-                hashed = onHashMethod.InvokeAndMatchParameters<byte[]>(RuleInstance, new object[] { messageBytes, _secret });
+                hashed = onHashMethod.InvokeAndMatchParameters<byte[]>(RuleInstance, new object[] { messageBytes, Secret });
             }
             else
             {
-                hashed = HashAlgorithms[_hashAlgorithm.Value](_secret, messageBytes);
+                hashed = HashAlgorithms[HashAlgorithm.Value](Secret, messageBytes);
             }
 
             return UrlEncode.Base64UrlEncode(hashed);
         }
 
-        protected string GetHashedSignature(JwtToken jwt)
+        protected string GetHashedSignature(IJotToken jwt)
         {
             // get the headers
             var jwtHeaders = jwt.GetHeaders();
@@ -111,7 +111,7 @@ namespace Jot
             // serialize header and claims
             var header = SerializeObject(jwtHeaders);
             var claims = SerializeObject(jwtClaims);
-            var signatureClaims = _onGetGhostClaims != null ? SerializeObject(GetClaimsWithGhostClaims(jwt)) : claims;
+            var signatureClaims = OnGetGhostClaims != null ? SerializeObject(GetClaimsWithGhostClaims(jwt)) : claims;
 
             // header and claim bytes
             var headerBytes = Encoding.UTF8.GetBytes(header);
@@ -131,7 +131,7 @@ namespace Jot
         #endregion
 
         #region Other
-        protected Dictionary<string, object> GetClaimsWithGhostClaims(JwtToken jwt)
+        protected Dictionary<string, object> GetClaimsWithGhostClaims(IJotToken jwt)
         {
             var onGetGhostClaims = JotCreationHelper.GetOnGetGhostClaims<T>();
 
@@ -148,37 +148,6 @@ namespace Jot
             return result;
         }
 
-        #endregion
-
-        #region Decode
-
-        public IJotToken Decode(string encodedToken)
-        {
-            var parts = encodedToken.Split('.');
-
-            if (parts.Count() != 3) throw new JotException("Token does not consist of three parts");
-
-            // create rules
-            var rules = Activator.CreateInstance<T>();
-
-            // parts
-            var header = parts[0];
-            var claims = parts[1];
-
-            // get bytes of parts
-            var headerBytes = UrlEncode.Base64UrlDecode(header);
-            var claimBytes = UrlEncode.Base64UrlDecode(claims);
-
-            // get segments
-            var headerSegment = Encoding.UTF8.GetString(headerBytes);
-            var claimSegment = Encoding.UTF8.GetString(claimBytes);
-
-            // decode claims to object
-            var claimsObject = DecodeObject(claimSegment);
-            var headerObject = DecodeObject(headerSegment);
-
-            return new JwtToken(headerObject, claimsObject);
-        }
         #endregion
     }
 }

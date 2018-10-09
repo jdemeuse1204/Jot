@@ -1,11 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using Jot.Attributes;
 
 namespace Jot.Rules.Creation
 {
-    class JotDefaultCreationRules
+    [TokenTimeout(30)]
+    [HashAlgorithmType(HashAlgorithm.HS256)]
+    public class JotDefaultCreationRules
     {
     }
 }

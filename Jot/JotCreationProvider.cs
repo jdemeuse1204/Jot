@@ -1,20 +1,10 @@
-﻿using Jot.Rules.Creation;
+﻿using Jot.Rules.Verification;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace Jot
 {
-
-    // Creation > Validation > Base
-
-    // creation rules
-    // refresh x
-    // encode x
-    // create
-
-    // validation rules
-    // validate
     internal class JotCreationProvider<T> : JotBaseProvider<T> where T : class
     {
         #region Refresh Token
@@ -26,7 +16,14 @@ namespace Jot
         /// <returns></returns>
         public IJotToken Refresh(string encodedToken)
         {
-            var token = Decode(encodedToken);
+            var token = new JotValidationProvider<JotDefaultValidationRules>().Decode(encodedToken);
+
+            return Refresh(token);
+        }
+
+        public IJotToken Refresh<K>(string encodedToken) where K : class
+        {
+            var token = new JotValidationProvider<K>().Decode(encodedToken);
 
             return Refresh(token);
         }
@@ -48,6 +45,35 @@ namespace Jot
 
         #endregion
 
+        #region Create
+        public IJotToken Create(Dictionary<string, object> claims, Dictionary<string, object> extraHeaders)
+        {
+            var timeProvider = JotCreationHelper.GetOnGetUnixTimeProvider<T>(RuleInstance);
+            var timeout = JotCreationHelper.GetJwtTimeout<T>();
+            var token = new JwtToken(timeProvider, timeout);
+
+            // set and add claims
+            foreach (var claim in claims) token.SetClaim(claim.Key, claim.Value);
+
+            // add extra headers
+            foreach (var header in extraHeaders) token.SetHeader(header.Key, header.Value);
+
+            JotCreationHelper.GetOnCreateMethod<T>().TryInvoke(RuleInstance, new object[] { token });
+
+            return token;
+        }
+
+        public IJotToken Create()
+        {
+            return Create(new Dictionary<string, object>(), new Dictionary<string, object>());
+        }
+
+        public IJotToken Create(Dictionary<string, object> claims)
+        {
+            return Create(claims, new Dictionary<string, object>());
+        }
+        #endregion
+
         #region Encode
         public string Encode(IJotToken token)
         {
@@ -55,17 +81,30 @@ namespace Jot
 
             if (jwt == null) throw new Exception("Token is not formed correctly");
 
-            return Encode(token, Activator.CreateInstance<T>());
+            var rules = Activator.CreateInstance<T>();
+            var secret = JotCreationHelper.GetSecret<T>(rules);
+
+            return Encode(token, secret, rules);
         }
 
-        private string Encode(IJotToken token, object creationRules)
+        public string Encode(IJotToken token, string secret)
+        {
+            var jwt = token as JwtToken;
+
+            if (jwt == null) throw new Exception("Token is not formed correctly");
+
+            var rules = Activator.CreateInstance<T>();
+
+            return Encode(token, secret, rules);
+        }
+
+        private string Encode(IJotToken token, string secret, object creationRules)
         {
             var jwt = token as JwtToken;
 
             if (jwt == null) throw new Exception("Token is not formed correctly");
 
             // creation data
-            var secret = JotCreationHelper.GetSecret<T>(creationRules);
             var useGhostClaims = JotCreationHelper.IsUsingGhostClaims<T>();
             var hashAlgorithm = JotCreationHelper.GetHashAlgorithm<T>();
 
@@ -109,32 +148,6 @@ namespace Jot
             }
 
             return hashAlgorithm.Value.ToString();
-        }
-
-        #endregion
-
-        #region Create
-        public IJotToken Create(Dictionary<string, object> claims, Dictionary<string, object> extraHeaders)
-        {
-            var timeProvider = JotCreationHelper.GetOnGetUnixTimeProvider<T>(RuleInstance);
-            var timeout = JotCreationHelper.GetJwtTimeout<T>();
-            var token = new JwtToken(timeProvider, timeout);
-
-            // set and add claims
-            foreach (var claim in claims) token.SetClaim(claim.Key, claim.Value);
-
-            // add extra headers
-            foreach (var header in extraHeaders) token.SetHeader(header.Key, header.Value);
-
-            JotCreationHelper.GetOnCreateMethod<T>().TryInvoke(RuleInstance, new object[] { token });
-
-            return token;
-        }
-
-
-        public IJotToken Create(Dictionary<string, object> claims)
-        {
-            return Create(claims, new Dictionary<string, object>());
         }
         #endregion
     }

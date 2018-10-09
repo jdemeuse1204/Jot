@@ -79,7 +79,7 @@
     <Compile Include="Time\TimeProvider.cs" />
     <Compile Include="Time\UnixTimeProvider.cs" />
     <Compile Include="TokenValidationResult.cs" />
-    <Compile Include="Rules\Verification\JotDefaultRules.cs" />
+    <Compile Include="Rules\Verification\JotDefaultValidationRules.cs" />
     <Compile Include="Rules\Verification\RfcBaseRules.cs" />
     <Compile Include="UrlEncode.cs" />
   </ItemGroup>

@@ -10,7 +10,8 @@ using Jot.Attributes;
 
 namespace Jot.Rules.Verification
 {
-    public class JotDefaultRules : RfcBaseRules
+    [HashAlgorithmType(HashAlgorithm.HS256)]
+    public class JotDefaultValidationRules : RfcBaseRules
     {
         [Required]
         [VerifyClaim("nbf")]
@@ -31,6 +32,12 @@ namespace Jot.Rules.Verification
         public TokenValidationResult ValidateIatClaim(string claimValue)
         {
             return IsIatClaimValid(claimValue) ? TokenValidationResult.Passed : TokenValidationResult.CreatedTimeCheckFailed;
+        }
+
+        [OnGetSecret]
+        public string OnGetSecret()
+        {
+            return "";
         }
     }
 }

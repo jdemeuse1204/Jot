@@ -6,10 +6,16 @@
  * Copyright (c) 2016 James Demeuse
  */
 
+using System.Collections.Generic;
+
 namespace Jot
 {
     public interface IJotToken
     {
+        Dictionary<string, object> GetClaims();
+
+        Dictionary<string, object> GetHeaders();
+
         T GetClaim<T>(string claimKey);
 
         T GetClaimOrDefault<T>(string claimKey);
