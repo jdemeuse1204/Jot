@@ -472,6 +472,17 @@ var signature = base64URLencode(HMACSHA256(signaturePayload, secret));
 var encodedJWT = payload + "." + signature;
 ```
 
+##Power of Ghost Claims
+I ran Jwt-Cracker (https://github.com/lmammino/jwt-cracker) on a HS256 token created with a secret of "a" and the JWT was not cracked when using ghost claims.
+
+Here are the results:
+
+```
+SECRET NOT FOUND
+Time taken (sec): 2652.114
+Attempts: 254313150
+```
+
 ####NOTE: When Decoding the ghost claims, they are added back into the claims object and we check for a signature match.  The server should only know what the ghost claims are
 
 # Web/App config setup
