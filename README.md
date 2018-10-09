@@ -482,7 +482,7 @@ Settings
   * timeOut - this is the time out of the token in minutes
   * anonymousAlgorithmInHeader - in the header of a JWT the typ claim exposes the hash method.  If you do not wish to share the hash method, you may make the typ header say "Anonymous."  The has method comes from the Jot on the server, the typ header is not used.  It is set for conventions sake.
 
--Encryption
+-Hashing
   * type - This is the hash type that will be used for the signature.  Options are HS256, HS384, and HS512.
   * useGhostClaims - tells your **Jot** whether or not to use **Ghost Claims**
   * secret - secret/key to hash the signature of a token
